@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using Prototype1.Database;
 
@@ -14,6 +15,7 @@ namespace Prototype1.Forms
         private Panel               pnlBody;
         private Panel               pnlSidebar;
         private Panel               pnlSidebarScroll;   // scrollable inner panel
+        private Panel               pnlScrollThumb;     // custom scrollbar thumb (replaces native)
         private Panel               pnlContent;
         private System.Windows.Forms.Timer dashTimer;
         private System.Windows.Forms.Timer sessionTimer;
@@ -26,6 +28,19 @@ namespace Prototype1.Forms
         private static readonly Color NavBtnHover  = Color.FromArgb(13,  94, 118);
         private static readonly Color NavBtnText   = Color.FromArgb(210, 220, 230);
         private static readonly Color NavBtnActive = Color.FromArgb(13,  94, 118);
+        // Scrollbar thumb colors — invisible (matches sidebar) when idle, teal when hovered
+        private static readonly Color ThumbIdle    = Color.FromArgb(28,  42,  56);   // matches SidebarBg
+        private static readonly Color ThumbHover   = Color.FromArgb(13,  94, 118);   // matches NavBtnHover
+        private static readonly Color ThumbDrag    = Color.FromArgb(19, 181, 166);   // teal accent
+
+        // ── Win32: hide the native vertical scrollbar on pnlSidebarScroll ──
+        [DllImport("user32.dll")]
+        private static extern int ShowScrollBar(IntPtr hWnd, int wBar, int bShow);
+        private const int SB_VERT = 1;
+
+        // ── Scrollbar thumb drag state ──
+        private bool _thumbDragging;
+        private int  _thumbDragOffsetY;
 
         public MainMenuForm()
         {
@@ -153,12 +168,35 @@ namespace Prototype1.Forms
                 Dock       = DockStyle.Fill,
                 BackColor  = SidebarBg,
                 AutoScroll = true,
-                Padding    = new Padding(0)
+                Padding    = new Padding(0, 0, 8, 0)   // reserve 8px on right for custom thumb
             };
+            // Custom scrollbar thumb (overlays right edge of pnlSidebarScroll)
+            pnlScrollThumb = new Panel
+            {
+                Width     = 6,
+                BackColor = ThumbIdle,
+                Cursor    = Cursors.Hand,
+                Visible   = false   // hidden until content exceeds viewport
+            };
+            pnlScrollThumb.MouseDown += Thumb_MouseDown;
+            pnlScrollThumb.MouseMove += Thumb_MouseMove;
+            pnlScrollThumb.MouseUp   += Thumb_MouseUp;
+            pnlScrollThumb.MouseEnter += (s, e) => { if (!_thumbDragging) pnlScrollThumb.BackColor = ThumbHover; };
+            pnlScrollThumb.MouseLeave += (s, e) => { if (!_thumbDragging) pnlScrollThumb.BackColor = ThumbIdle;  };
+
             // Add Fill FIRST so the Top-docked logo correctly stacks above it
             pnlSidebar.Controls.Add(pnlSidebarScroll);
             pnlSidebar.Controls.Add(logoBlock);
+            pnlSidebar.Controls.Add(pnlScrollThumb);   // overlay on top of scroll panel
+            pnlScrollThumb.BringToFront();
             pnlBody.Controls.Add(pnlSidebar);
+
+            // Hook scroll sync
+            pnlSidebarScroll.Scroll          += (s, e) => UpdateThumb();
+            pnlSidebarScroll.MouseWheel      += (s, e) => UpdateThumb();
+            pnlSidebarScroll.Resize          += (s, e) => UpdateThumb();
+            pnlSidebarScroll.HandleCreated   += (s, e) => ShowScrollBar(pnlSidebarScroll.Handle, SB_VERT, 0);
+            pnlSidebarScroll.VisibleChanged  += (s, e) => { if (pnlSidebarScroll.IsHandleCreated) ShowScrollBar(pnlSidebarScroll.Handle, SB_VERT, 0); };
 
             // ---- CONTENT ----
             pnlContent = new Panel { Dock = DockStyle.Fill, BackColor = UiTheme.Background, Padding = new Padding(28, 20, 28, 20) };
@@ -224,6 +262,74 @@ namespace Prototype1.Forms
 
             // Tell panel how tall its content is so scroll works
             pnlSidebarScroll.AutoScrollMinSize = new Size(0, _navY + 8);
+            UpdateThumb();
+        }
+
+        // ============================================================
+        //  CUSTOM SCROLLBAR THUMB
+        // ============================================================
+        private void UpdateThumb()
+        {
+            if (pnlScrollThumb == null || pnlSidebarScroll == null) return;
+            int viewport = pnlSidebarScroll.ClientSize.Height;
+            int content  = pnlSidebarScroll.AutoScrollMinSize.Height;
+            if (content <= viewport || content <= 0)
+            {
+                pnlScrollThumb.Visible = false;
+                return;
+            }
+            pnlScrollThumb.Visible = true;
+
+            int trackTop    = pnlSidebar.Controls.GetChildIndex(pnlSidebarScroll) >= 0 ? pnlSidebarScroll.Top : 0;
+            int trackHeight = pnlSidebarScroll.Height;
+            int thumbHeight = Math.Max(30, (int)((double)viewport / content * trackHeight));
+
+            int scrollY = -pnlSidebarScroll.AutoScrollPosition.Y;
+            int maxScroll = Math.Max(1, content - viewport);
+            int thumbY = trackTop + (int)((double)scrollY / maxScroll * (trackHeight - thumbHeight));
+
+            pnlScrollThumb.SetBounds(
+                pnlSidebar.Width - pnlScrollThumb.Width - 2,
+                thumbY,
+                pnlScrollThumb.Width,
+                thumbHeight);
+        }
+
+        private void Thumb_MouseDown(object sender, MouseEventArgs e)
+        {
+            _thumbDragging   = true;
+            _thumbDragOffsetY = e.Y;
+            pnlScrollThumb.BackColor = ThumbDrag;
+            pnlScrollThumb.Capture = true;
+        }
+
+        private void Thumb_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (!_thumbDragging) return;
+            Point screenPt = pnlScrollThumb.PointToScreen(new Point(0, e.Y));
+            Point trackPt  = pnlSidebar.PointToClient(screenPt);
+            int trackTop    = pnlSidebarScroll.Top;
+            int trackHeight = pnlSidebarScroll.Height;
+            int thumbHeight = pnlScrollThumb.Height;
+            int newThumbY = trackPt.Y - _thumbDragOffsetY;
+            newThumbY = Math.Max(trackTop, Math.Min(newThumbY, trackTop + trackHeight - thumbHeight));
+
+            int viewport = pnlSidebarScroll.ClientSize.Height;
+            int content  = pnlSidebarScroll.AutoScrollMinSize.Height;
+            int maxScroll = Math.Max(1, content - viewport);
+            double pct = (double)(newThumbY - trackTop) / Math.Max(1, trackHeight - thumbHeight);
+            int newScrollY = (int)(pct * maxScroll);
+            pnlSidebarScroll.AutoScrollPosition = new Point(0, newScrollY);
+            UpdateThumb();
+        }
+
+        private void Thumb_MouseUp(object sender, MouseEventArgs e)
+        {
+            _thumbDragging = false;
+            pnlScrollThumb.Capture = false;
+            pnlScrollThumb.BackColor = pnlScrollThumb.ClientRectangle.Contains(e.Location)
+                                       ? ThumbHover
+                                       : ThumbIdle;
         }
 
         // ============================================================
