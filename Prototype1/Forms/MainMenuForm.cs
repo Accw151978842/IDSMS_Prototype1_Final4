@@ -1,7 +1,6 @@
 using System;
 using System.Globalization;
 using System.Drawing;
-using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using Prototype1.Database;
 
@@ -33,12 +32,9 @@ namespace Prototype1.Forms
         private static readonly Color ThumbHover   = Color.FromArgb(13,  94, 118);   // matches NavBtnHover
         private static readonly Color ThumbDrag    = Color.FromArgb(19, 181, 166);   // teal accent
 
-        // ── Win32: hide the native vertical scrollbar on pnlSidebarScroll ──
-        [DllImport("user32.dll")]
-        private static extern int ShowScrollBar(IntPtr hWnd, int wBar, int bShow);
-        private const int SB_VERT = 1;
-
-        // ── Scrollbar thumb drag state ──
+        // ── Custom scroll state (AutoScroll is OFF, we manage offset ourselves) ──
+        private int  _scrollY = 0;           // current scroll offset (>=0)
+        private int  _contentHeight = 0;     // total height of all nav items
         private bool _thumbDragging;
         private int  _thumbDragOffsetY;
 
@@ -150,7 +146,8 @@ namespace Prototype1.Forms
             pnlSidebar = new Panel { Dock = DockStyle.Left, Width = 220, BackColor = SidebarBg };
 
             // Logo row (declared first, but added LAST so DockStyle.Top sits above the Fill panel)
-            var logoBlock = new Panel { Dock = DockStyle.Top, Height = 52, BackColor = Color.FromArgb(18, 30, 42) };
+            // Match SidebarBg exactly to remove the visible dividing line
+            var logoBlock = new Panel { Dock = DockStyle.Top, Height = 52, BackColor = SidebarBg };
             var logoLabel = new Label
             {
                 Text      = "  IDSMS",
@@ -162,14 +159,16 @@ namespace Prototype1.Forms
             };
             logoBlock.Controls.Add(logoLabel);
 
-            // Scrollable nav items  ← key fix: use AutoScrollMinSize
+            // Scrollable nav items — NO native scrollbar (AutoScroll = false)
+            // Wheel + custom thumb scroll only. We track scroll offset manually.
             pnlSidebarScroll = new Panel
             {
                 Dock       = DockStyle.Fill,
                 BackColor  = SidebarBg,
-                AutoScroll = true,
+                AutoScroll = false,                    // no native scrollbar at all
                 Padding    = new Padding(0, 0, 8, 0)   // reserve 8px on right for custom thumb
             };
+            pnlSidebarScroll.MouseWheel += SidebarScroll_MouseWheel;
             // Custom scrollbar thumb (overlays right edge of pnlSidebarScroll)
             pnlScrollThumb = new Panel
             {
@@ -191,12 +190,8 @@ namespace Prototype1.Forms
             pnlScrollThumb.BringToFront();
             pnlBody.Controls.Add(pnlSidebar);
 
-            // Hook scroll sync
-            pnlSidebarScroll.Scroll          += (s, e) => UpdateThumb();
-            pnlSidebarScroll.MouseWheel      += (s, e) => UpdateThumb();
-            pnlSidebarScroll.Resize          += (s, e) => UpdateThumb();
-            pnlSidebarScroll.HandleCreated   += (s, e) => ShowScrollBar(pnlSidebarScroll.Handle, SB_VERT, 0);
-            pnlSidebarScroll.VisibleChanged  += (s, e) => { if (pnlSidebarScroll.IsHandleCreated) ShowScrollBar(pnlSidebarScroll.Handle, SB_VERT, 0); };
+            // Hook resize to recalc thumb. Scrolling now driven entirely by our code.
+            pnlSidebarScroll.Resize += (s, e) => UpdateThumb();
 
             // ---- CONTENT ----
             pnlContent = new Panel { Dock = DockStyle.Fill, BackColor = UiTheme.Background, Padding = new Padding(28, 20, 28, 20) };
@@ -260,9 +255,40 @@ namespace Prototype1.Forms
             AddNavGroup("ADMINISTRATION");
             AddNavButton("  User Accounts",        (s, e) => RequireRoleAndOpen(new UserMasterForm(),        "Administrator"));
 
-            // Tell panel how tall its content is so scroll works
-            pnlSidebarScroll.AutoScrollMinSize = new Size(0, _navY + 8);
+            // Record content height for our custom scroll logic
+            _contentHeight = _navY + 8;
+            _scrollY = 0;
+            ApplyScroll();
             UpdateThumb();
+        }
+
+        // ============================================================
+        //  CUSTOM SCROLL (no native scrollbar)
+        // ============================================================
+        private void SidebarScroll_MouseWheel(object sender, MouseEventArgs e)
+        {
+            int viewport = pnlSidebarScroll.ClientSize.Height;
+            int maxScroll = Math.Max(0, _contentHeight - viewport);
+            if (maxScroll <= 0) return;
+            _scrollY -= e.Delta;           // typical wheel delta = ±120
+            _scrollY = Math.Max(0, Math.Min(_scrollY, maxScroll));
+            ApplyScroll();
+            UpdateThumb();
+        }
+
+        private void ApplyScroll()
+        {
+            // Reposition every child of pnlSidebarScroll relative to _scrollY.
+            // Each child's logical Y is stored in Tag (set by AddNavGroup / AddNavButton).
+            pnlSidebarScroll.SuspendLayout();
+            foreach (Control c in pnlSidebarScroll.Controls)
+            {
+                if (c.Tag is int logicalY)
+                {
+                    c.Top = logicalY - _scrollY;
+                }
+            }
+            pnlSidebarScroll.ResumeLayout();
         }
 
         // ============================================================
@@ -272,7 +298,7 @@ namespace Prototype1.Forms
         {
             if (pnlScrollThumb == null || pnlSidebarScroll == null) return;
             int viewport = pnlSidebarScroll.ClientSize.Height;
-            int content  = pnlSidebarScroll.AutoScrollMinSize.Height;
+            int content  = _contentHeight;
             if (content <= viewport || content <= 0)
             {
                 pnlScrollThumb.Visible = false;
@@ -280,13 +306,12 @@ namespace Prototype1.Forms
             }
             pnlScrollThumb.Visible = true;
 
-            int trackTop    = pnlSidebar.Controls.GetChildIndex(pnlSidebarScroll) >= 0 ? pnlSidebarScroll.Top : 0;
+            int trackTop    = pnlSidebarScroll.Top;
             int trackHeight = pnlSidebarScroll.Height;
             int thumbHeight = Math.Max(30, (int)((double)viewport / content * trackHeight));
 
-            int scrollY = -pnlSidebarScroll.AutoScrollPosition.Y;
             int maxScroll = Math.Max(1, content - viewport);
-            int thumbY = trackTop + (int)((double)scrollY / maxScroll * (trackHeight - thumbHeight));
+            int thumbY = trackTop + (int)((double)_scrollY / maxScroll * (trackHeight - thumbHeight));
 
             pnlScrollThumb.SetBounds(
                 pnlSidebar.Width - pnlScrollThumb.Width - 2,
@@ -315,11 +340,12 @@ namespace Prototype1.Forms
             newThumbY = Math.Max(trackTop, Math.Min(newThumbY, trackTop + trackHeight - thumbHeight));
 
             int viewport = pnlSidebarScroll.ClientSize.Height;
-            int content  = pnlSidebarScroll.AutoScrollMinSize.Height;
+            int content  = _contentHeight;
             int maxScroll = Math.Max(1, content - viewport);
             double pct = (double)(newThumbY - trackTop) / Math.Max(1, trackHeight - thumbHeight);
-            int newScrollY = (int)(pct * maxScroll);
-            pnlSidebarScroll.AutoScrollPosition = new Point(0, newScrollY);
+            _scrollY = (int)(pct * maxScroll);
+            _scrollY = Math.Max(0, Math.Min(_scrollY, maxScroll));
+            ApplyScroll();
             UpdateThumb();
         }
 
@@ -394,7 +420,8 @@ namespace Prototype1.Forms
                 Height    = 26,
                 TextAlign = ContentAlignment.BottomLeft,
                 Location  = new Point(8, _navY),
-                Padding   = new Padding(6, 0, 0, 0)
+                Padding   = new Padding(6, 0, 0, 0),
+                Tag       = _navY            // remember logical Y for custom scroll
             };
             pnlSidebarScroll.Controls.Add(lbl);
             _navY += 30;
@@ -402,6 +429,7 @@ namespace Prototype1.Forms
 
         private void AddNavButton(string text, EventHandler onClick)
         {
+            int logicalY = _navY;
             var btn = new Button
             {
                 Text      = text,
@@ -415,12 +443,15 @@ namespace Prototype1.Forms
                 Font      = UiTheme.FontNormal,
                 Cursor    = Cursors.Hand,
                 Padding   = new Padding(10, 0, 4, 0),
-                UseVisualStyleBackColor = false
+                UseVisualStyleBackColor = false,
+                Tag       = logicalY            // remember logical Y for custom scroll
             };
             btn.FlatAppearance.BorderSize         = 0;
             btn.FlatAppearance.MouseOverBackColor = NavBtnHover;
             btn.FlatAppearance.MouseDownBackColor = NavBtnActive;
             btn.Click += onClick;
+            // Forward mouse wheel over the button to the sidebar scroll panel
+            btn.MouseWheel += SidebarScroll_MouseWheel;
             pnlSidebarScroll.Controls.Add(btn);
             _navY += 36;
         }
