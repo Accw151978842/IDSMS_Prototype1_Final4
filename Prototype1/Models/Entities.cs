@@ -153,6 +153,88 @@ namespace Prototype1.Models
         [DataMember] public string Resolution { get; set; }
     }
 
+    // ============================================================
+    //  PRODUCTION  —  Raw Material Request (RMR)
+    // ============================================================
+    [DataContract]
+    public class RawMaterialRequest
+    {
+        [DataMember] public string RmrId { get; set; }            // RMR00001
+        [DataMember] public DateTime RequestDate { get; set; }
+        [DataMember] public string RequestedBy { get; set; }      // StaffId
+        [DataMember] public string Department { get; set; }       // Production / Design / ...
+        [DataMember] public string Status { get; set; }           // Pending / Approved / Rejected / Procured
+        [DataMember] public string Notes { get; set; }
+        [DataMember] public List<RmrLine> Lines { get; set; }
+
+        public RawMaterialRequest()
+        {
+            Lines = new List<RmrLine>();
+        }
+
+        public int TotalQty
+        {
+            get
+            {
+                int sum = 0;
+                if (Lines != null) foreach (var l in Lines) sum += l.QtyNeeded;
+                return sum;
+            }
+        }
+    }
+
+    [DataContract]
+    public class RmrLine
+    {
+        [DataMember] public string ItemId { get; set; }
+        [DataMember] public string ItemName { get; set; }
+        [DataMember] public int QtyNeeded { get; set; }
+        [DataMember] public string Notes { get; set; }
+    }
+
+    // ============================================================
+    //  PROCUREMENT  —  Purchase Order (PO)
+    // ============================================================
+    [DataContract]
+    public class Procurement
+    {
+        [DataMember] public string PoId { get; set; }             // PO00001
+        [DataMember] public string SupplierId { get; set; }
+        [DataMember] public DateTime OrderDate { get; set; }
+        [DataMember] public DateTime ExpectedDelivery { get; set; }
+        [DataMember] public string Status { get; set; }           // Draft / Sent / PartiallyReceived / Completed / Cancelled
+        [DataMember] public string LinkedRmrId { get; set; }      // optional, nullable
+        [DataMember] public string CreatedBy { get; set; }
+        [DataMember] public string Remarks { get; set; }
+        [DataMember] public List<ProcurementLine> Lines { get; set; }
+
+        public Procurement()
+        {
+            Lines = new List<ProcurementLine>();
+        }
+
+        public decimal TotalAmount
+        {
+            get
+            {
+                decimal sum = 0m;
+                if (Lines != null) foreach (var l in Lines) sum += l.Subtotal;
+                return sum;
+            }
+        }
+    }
+
+    [DataContract]
+    public class ProcurementLine
+    {
+        [DataMember] public string ItemId { get; set; }
+        [DataMember] public string ItemName { get; set; }
+        [DataMember] public int Quantity { get; set; }
+        [DataMember] public decimal UnitPrice { get; set; }
+
+        public decimal Subtotal { get { return Quantity * UnitPrice; } }
+    }
+
     [DataContract]
     public class AuditLog
     {

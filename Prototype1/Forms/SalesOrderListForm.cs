@@ -13,6 +13,8 @@ namespace Prototype1.Forms
         private Button btnNew, btnEdit, btnView, btnDelete, btnClose, btnRefresh;
         private TextBox txtSearch;
         private ComboBox cmbStatus;
+        private CheckBox chkDateFilter;
+        private DateTimePicker dtpFrom, dtpTo;
 
         public SalesOrderListForm()
         {
@@ -66,7 +68,22 @@ namespace Prototype1.Forms
             cmbStatus.SelectedIndexChanged += (s, e) => LoadGrid();
             top.Controls.Add(cmbStatus);
 
-            btnRefresh = new Button { Text = "Refresh", Location = new Point(525, 37), Width = 90, Height = 28 };
+            // Date-range filter
+            chkDateFilter = new CheckBox { Text = "Date range:", Location = new Point(525, 41), AutoSize = true, ForeColor = UiTheme.TextMuted };
+            chkDateFilter.CheckedChanged += (s, e) => { dtpFrom.Enabled = dtpTo.Enabled = chkDateFilter.Checked; LoadGrid(); };
+            top.Controls.Add(chkDateFilter);
+
+            dtpFrom = new DateTimePicker { Location = new Point(625, 38), Width = 110, Format = DateTimePickerFormat.Short, Enabled = false, Value = DateTime.Today.AddMonths(-1) };
+            dtpFrom.ValueChanged += (s, e) => { if (chkDateFilter.Checked) LoadGrid(); };
+            top.Controls.Add(dtpFrom);
+
+            top.Controls.Add(new Label { Text = "to", Location = new Point(740, 42), AutoSize = true, ForeColor = UiTheme.TextMuted });
+
+            dtpTo = new DateTimePicker { Location = new Point(760, 38), Width = 110, Format = DateTimePickerFormat.Short, Enabled = false, Value = DateTime.Today };
+            dtpTo.ValueChanged += (s, e) => { if (chkDateFilter.Checked) LoadGrid(); };
+            top.Controls.Add(dtpTo);
+
+            btnRefresh = new Button { Text = "Refresh", Location = new Point(880, 37), Width = 80, Height = 28 };
             UiTheme.StyleSecondary(btnRefresh);
             btnRefresh.Click += (s, e) => LoadGrid();
             top.Controls.Add(btnRefresh);
@@ -118,12 +135,17 @@ namespace Prototype1.Forms
 
             string filter = txtSearch.Text.Trim().ToLower();
             string status = cmbStatus.SelectedItem as string;
+            bool useDate = chkDateFilter != null && chkDateFilter.Checked;
+            DateTime from = dtpFrom != null ? dtpFrom.Value.Date : DateTime.MinValue;
+            DateTime to   = dtpTo   != null ? dtpTo.Value.Date   : DateTime.MaxValue;
 
+            int shown = 0;
             foreach (var o in DataStore.SalesOrders)
             {
                 var cust = DataStore.Customers.FirstOrDefault(c => c.CustomerId == o.CustomerId);
                 string custName = cust != null ? cust.CompanyName : o.CustomerId;
                 if (status != null && status != "(All)" && o.Status != status) continue;
+                if (useDate && (o.OrderDate.Date < from || o.OrderDate.Date > to)) continue;
                 if (filter.Length > 0)
                 {
                     string hay = (o.OrderId + " " + custName + " " + o.Status).ToLower();
@@ -131,7 +153,9 @@ namespace Prototype1.Forms
                 }
                 grid.Rows.Add(o.OrderId, o.OrderDate.ToString("yyyy-MM-dd"), custName,
                     o.RequiredDate.ToString("yyyy-MM-dd"), o.Status, o.Lines.Count, o.TotalAmount.ToString("N2"));
+                shown++;
             }
+            Text = "Sales Orders - " + shown + " record(s)";
         }
 
         private SalesOrder Selected()

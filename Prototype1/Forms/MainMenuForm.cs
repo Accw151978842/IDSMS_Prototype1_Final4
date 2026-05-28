@@ -205,6 +205,12 @@ namespace Prototype1.Forms
             AddNavGroup("INVENTORY");
             AddNavButton("  Item Master / Stock",  (s, e) => RequireRoleAndOpen(new ItemMasterForm(),        "Warehouse", "Sales"));
 
+            AddNavGroup("PRODUCTION");
+            AddNavButton("  Raw Material Requests",(s, e) => RequireRoleAndOpen(new RawMaterialRequestForm(),"Administrator", "Warehouse", "Logistics"));
+
+            AddNavGroup("PROCUREMENT");
+            AddNavButton("  Purchase Orders",      (s, e) => RequireRoleAndOpen(new ProcurementForm(),       "Administrator", "Warehouse", "Logistics"));
+
             AddNavGroup("AFTER-SERVICE");
             AddNavButton("  Return / Replacement", (s, e) => RequireRoleAndOpen(new AfterServiceForm(),      "Service", "Sales"));
 

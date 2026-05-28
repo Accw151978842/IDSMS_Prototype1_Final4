@@ -108,6 +108,65 @@ namespace Prototype1.Database
                 Remarks = "Carton intact"
             });
 
+            // -- Raw Material Requests (Production) --
+            var rmr1 = new RawMaterialRequest
+            {
+                RmrId = "RMR00001",
+                RequestDate = DateTime.Today.AddDays(-5),
+                RequestedBy = "S00003",
+                Department  = "Warehouse",
+                Status      = "Approved",
+                Notes       = "Restock fast-moving office furniture"
+            };
+            rmr1.Lines.Add(new RmrLine { ItemId = "I00001", ItemName = "Executive Office Desk (Oak)", QtyNeeded = 10, Notes = "Below reorder level soon" });
+            rmr1.Lines.Add(new RmrLine { ItemId = "I00002", ItemName = "Ergonomic Mesh Chair",        QtyNeeded = 20, Notes = "" });
+
+            var rmr2 = new RawMaterialRequest
+            {
+                RmrId = "RMR00002",
+                RequestDate = DateTime.Today.AddDays(-2),
+                RequestedBy = "S00001",
+                Department  = "Production",
+                Status      = "Pending",
+                Notes       = "Living-room set for upcoming hotel project"
+            };
+            rmr2.Lines.Add(new RmrLine { ItemId = "I00003", ItemName = "3-Seater Leather Sofa", QtyNeeded = 6,  Notes = "Project Harbour View phase 2" });
+            rmr2.Lines.Add(new RmrLine { ItemId = "I00006", ItemName = "Bookshelf - 5 Tier",    QtyNeeded = 12, Notes = "" });
+
+            DataStore.RawMaterialRequests.Add(rmr1);
+            DataStore.RawMaterialRequests.Add(rmr2);
+
+            // -- Procurements (Purchase Orders) --
+            var po1 = new Procurement
+            {
+                PoId             = "PO00001",
+                SupplierId       = "SP00001",
+                OrderDate        = DateTime.Today.AddDays(-3),
+                ExpectedDelivery = DateTime.Today.AddDays(11),
+                Status           = "Sent",
+                LinkedRmrId      = "RMR00001",
+                CreatedBy        = "admin",
+                Remarks          = "Net 30 terms"
+            };
+            po1.Lines.Add(new ProcurementLine { ItemId = "I00001", ItemName = "Executive Office Desk (Oak)", Quantity = 10, UnitPrice = 4200m });
+            po1.Lines.Add(new ProcurementLine { ItemId = "I00002", ItemName = "Ergonomic Mesh Chair",        Quantity = 20, UnitPrice = 1850m });
+
+            var po2 = new Procurement
+            {
+                PoId             = "PO00002",
+                SupplierId       = "SP00002",
+                OrderDate        = DateTime.Today.AddDays(-1),
+                ExpectedDelivery = DateTime.Today.AddDays(14),
+                Status           = "Draft",
+                LinkedRmrId      = "",
+                CreatedBy        = "admin",
+                Remarks          = "Awaiting confirmation"
+            };
+            po2.Lines.Add(new ProcurementLine { ItemId = "I00003", ItemName = "3-Seater Leather Sofa", Quantity = 4, UnitPrice = 8800m });
+
+            DataStore.Procurements.Add(po1);
+            DataStore.Procurements.Add(po2);
+
             DataStore.ServiceRequests.Add(new AfterServiceRequest
             {
                 RequestId = "AS00001",

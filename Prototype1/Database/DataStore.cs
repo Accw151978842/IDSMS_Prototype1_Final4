@@ -21,6 +21,8 @@ namespace Prototype1.Database
         public static List<DeliveryNote>        Deliveries      = new List<DeliveryNote>();
         public static List<GoodsReceived>       Receipts        = new List<GoodsReceived>();
         public static List<AfterServiceRequest> ServiceRequests = new List<AfterServiceRequest>();
+        public static List<RawMaterialRequest>  RawMaterialRequests = new List<RawMaterialRequest>();
+        public static List<Procurement>         Procurements    = new List<Procurement>();
         public static List<AuditLog>            AuditLogs       = new List<AuditLog>();
 
         // ============================================================
@@ -37,6 +39,8 @@ namespace Prototype1.Database
             Deliveries      = LoadDeliveries();
             Receipts        = LoadReceipts();
             ServiceRequests = LoadServiceRequests();
+            RawMaterialRequests = LoadRawMaterialRequests();
+            Procurements    = LoadProcurements();
             AuditLogs       = LoadAuditLogs();
 
             if (Users.Count == 0)
@@ -71,6 +75,11 @@ namespace Prototype1.Database
                     Exec(conn, tx, "DELETE FROM delivery_notes");
                     Exec(conn, tx, "DELETE FROM sales_order_lines");
                     Exec(conn, tx, "DELETE FROM sales_orders");
+                    // procurement (children) before rmr (parent) - PO may reference RMR
+                    Exec(conn, tx, "DELETE FROM procurement_lines");
+                    Exec(conn, tx, "DELETE FROM procurements");
+                    Exec(conn, tx, "DELETE FROM rmr_lines");
+                    Exec(conn, tx, "DELETE FROM raw_material_requests");
                     Exec(conn, tx, "DELETE FROM goods_received");
                     Exec(conn, tx, "DELETE FROM items");
                     Exec(conn, tx, "DELETE FROM customers");
@@ -89,6 +98,8 @@ namespace Prototype1.Database
                     InsertDeliveries(conn, tx);
                     InsertReceipts(conn, tx);
                     InsertServiceRequests(conn, tx);
+                    InsertRawMaterialRequests(conn, tx);
+                    InsertProcurements(conn, tx);
                     InsertAuditLogs(conn, tx);
 
                     tx.Commit();
@@ -647,6 +658,173 @@ namespace Prototype1.Database
                     cmd.Parameters.AddWithValue("@hb",  s.HandledBy);
                     cmd.Parameters.AddWithValue("@res", s.Resolution);
                     cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
+        // ============================================================
+        //  RAW MATERIAL REQUESTS  (header + lines)
+        // ============================================================
+        private static List<RawMaterialRequest> LoadRawMaterialRequests()
+        {
+            var list = new List<RawMaterialRequest>();
+            using (var conn = DbConnection.GetConnection())
+            {
+                // Header
+                try
+                {
+                    using (var cmd = new MySqlCommand("SELECT * FROM raw_material_requests ORDER BY rmr_id", conn))
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                            list.Add(new RawMaterialRequest
+                            {
+                                RmrId       = r.GetString("rmr_id"),
+                                RequestDate = r.GetDateTime("request_date"),
+                                RequestedBy = r.IsDBNull(r.GetOrdinal("requested_by")) ? "" : r.GetString("requested_by"),
+                                Department  = r.IsDBNull(r.GetOrdinal("department"))   ? "" : r.GetString("department"),
+                                Status      = r.IsDBNull(r.GetOrdinal("status"))       ? "" : r.GetString("status"),
+                                Notes       = r.IsDBNull(r.GetOrdinal("notes"))        ? "" : r.GetString("notes")
+                            });
+                    }
+                }
+                catch (MySqlException) { return list; } // table not yet created
+
+                foreach (var rmr in list)
+                {
+                    using (var cmd2 = new MySqlCommand("SELECT * FROM rmr_lines WHERE rmr_id=@id", conn))
+                    {
+                        cmd2.Parameters.AddWithValue("@id", rmr.RmrId);
+                        using (var r2 = cmd2.ExecuteReader())
+                        {
+                            while (r2.Read())
+                                rmr.Lines.Add(new RmrLine
+                                {
+                                    ItemId    = r2.GetString("item_id"),
+                                    ItemName  = r2.IsDBNull(r2.GetOrdinal("item_name")) ? "" : r2.GetString("item_name"),
+                                    QtyNeeded = r2.GetInt32("qty_needed"),
+                                    Notes     = r2.IsDBNull(r2.GetOrdinal("notes")) ? "" : r2.GetString("notes")
+                                });
+                        }
+                    }
+                }
+            }
+            return list;
+        }
+
+        private static void InsertRawMaterialRequests(MySqlConnection conn, MySqlTransaction tx)
+        {
+            foreach (var rmr in RawMaterialRequests)
+            {
+                using (var cmd = new MySqlCommand(
+                    "INSERT INTO raw_material_requests(rmr_id,request_date,requested_by,department,status,notes) " +
+                    "VALUES(@id,@dt,@by,@dept,@st,@nt)", conn, tx))
+                {
+                    cmd.Parameters.AddWithValue("@id",   rmr.RmrId);
+                    cmd.Parameters.AddWithValue("@dt",   rmr.RequestDate.Date);
+                    cmd.Parameters.AddWithValue("@by",   rmr.RequestedBy ?? "");
+                    cmd.Parameters.AddWithValue("@dept", rmr.Department  ?? "");
+                    cmd.Parameters.AddWithValue("@st",   rmr.Status      ?? "Pending");
+                    cmd.Parameters.AddWithValue("@nt",   rmr.Notes       ?? "");
+                    cmd.ExecuteNonQuery();
+                }
+                foreach (var ln in rmr.Lines)
+                {
+                    using (var cmd2 = new MySqlCommand(
+                        "INSERT INTO rmr_lines(rmr_id,item_id,item_name,qty_needed,notes) VALUES(@rid,@iid,@inm,@qty,@nt)", conn, tx))
+                    {
+                        cmd2.Parameters.AddWithValue("@rid", rmr.RmrId);
+                        cmd2.Parameters.AddWithValue("@iid", ln.ItemId);
+                        cmd2.Parameters.AddWithValue("@inm", ln.ItemName ?? "");
+                        cmd2.Parameters.AddWithValue("@qty", ln.QtyNeeded);
+                        cmd2.Parameters.AddWithValue("@nt",  ln.Notes ?? "");
+                        cmd2.ExecuteNonQuery();
+                    }
+                }
+            }
+        }
+
+        // ============================================================
+        //  PROCUREMENT (Purchase Orders)  (header + lines)
+        // ============================================================
+        private static List<Procurement> LoadProcurements()
+        {
+            var list = new List<Procurement>();
+            using (var conn = DbConnection.GetConnection())
+            {
+                try
+                {
+                    using (var cmd = new MySqlCommand("SELECT * FROM procurements ORDER BY po_id", conn))
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                            list.Add(new Procurement
+                            {
+                                PoId             = r.GetString("po_id"),
+                                SupplierId       = r.IsDBNull(r.GetOrdinal("supplier_id"))       ? "" : r.GetString("supplier_id"),
+                                OrderDate        = r.GetDateTime("order_date"),
+                                ExpectedDelivery = r.GetDateTime("expected_delivery"),
+                                Status           = r.IsDBNull(r.GetOrdinal("status"))           ? "" : r.GetString("status"),
+                                LinkedRmrId      = r.IsDBNull(r.GetOrdinal("linked_rmr_id"))    ? "" : r.GetString("linked_rmr_id"),
+                                CreatedBy        = r.IsDBNull(r.GetOrdinal("created_by"))       ? "" : r.GetString("created_by"),
+                                Remarks          = r.IsDBNull(r.GetOrdinal("remarks"))          ? "" : r.GetString("remarks")
+                            });
+                    }
+                }
+                catch (MySqlException) { return list; }
+
+                foreach (var po in list)
+                {
+                    using (var cmd2 = new MySqlCommand("SELECT * FROM procurement_lines WHERE po_id=@id", conn))
+                    {
+                        cmd2.Parameters.AddWithValue("@id", po.PoId);
+                        using (var r2 = cmd2.ExecuteReader())
+                        {
+                            while (r2.Read())
+                                po.Lines.Add(new ProcurementLine
+                                {
+                                    ItemId    = r2.GetString("item_id"),
+                                    ItemName  = r2.IsDBNull(r2.GetOrdinal("item_name")) ? "" : r2.GetString("item_name"),
+                                    Quantity  = r2.GetInt32("quantity"),
+                                    UnitPrice = r2.GetDecimal("unit_price")
+                                });
+                        }
+                    }
+                }
+            }
+            return list;
+        }
+
+        private static void InsertProcurements(MySqlConnection conn, MySqlTransaction tx)
+        {
+            foreach (var po in Procurements)
+            {
+                using (var cmd = new MySqlCommand(
+                    "INSERT INTO procurements(po_id,supplier_id,order_date,expected_delivery,status,linked_rmr_id,created_by,remarks) " +
+                    "VALUES(@id,@sup,@od,@ed,@st,@rmr,@cb,@rem)", conn, tx))
+                {
+                    cmd.Parameters.AddWithValue("@id",  po.PoId);
+                    cmd.Parameters.AddWithValue("@sup", string.IsNullOrEmpty(po.SupplierId) ? (object)DBNull.Value : po.SupplierId);
+                    cmd.Parameters.AddWithValue("@od",  po.OrderDate.Date);
+                    cmd.Parameters.AddWithValue("@ed",  po.ExpectedDelivery.Date);
+                    cmd.Parameters.AddWithValue("@st",  po.Status ?? "Draft");
+                    cmd.Parameters.AddWithValue("@rmr", string.IsNullOrEmpty(po.LinkedRmrId) ? (object)DBNull.Value : po.LinkedRmrId);
+                    cmd.Parameters.AddWithValue("@cb",  po.CreatedBy ?? "");
+                    cmd.Parameters.AddWithValue("@rem", po.Remarks ?? "");
+                    cmd.ExecuteNonQuery();
+                }
+                foreach (var ln in po.Lines)
+                {
+                    using (var cmd2 = new MySqlCommand(
+                        "INSERT INTO procurement_lines(po_id,item_id,item_name,quantity,unit_price) VALUES(@pid,@iid,@inm,@qty,@up)", conn, tx))
+                    {
+                        cmd2.Parameters.AddWithValue("@pid", po.PoId);
+                        cmd2.Parameters.AddWithValue("@iid", ln.ItemId);
+                        cmd2.Parameters.AddWithValue("@inm", ln.ItemName ?? "");
+                        cmd2.Parameters.AddWithValue("@qty", ln.Quantity);
+                        cmd2.Parameters.AddWithValue("@up",  ln.UnitPrice);
+                        cmd2.ExecuteNonQuery();
+                    }
                 }
             }
         }
