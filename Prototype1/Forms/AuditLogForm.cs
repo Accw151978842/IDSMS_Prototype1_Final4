@@ -29,21 +29,23 @@ namespace Prototype1.Forms
         private void BuildUI()
         {
             // ---- TOP TOOLBAR ----
-            var top = UiTheme.BuildToolbar(100);
+            // Height raised to 130 to fit heading + 2 filter rows with breathing room.
+            // All controls offset by 16px from the left for a proper margin.
+            var top = UiTheme.BuildToolbar(130);
 
             var lblTitle = UiTheme.BuildHeading("Audit Log");
-            lblTitle.Location = new Point(0, 6);
+            lblTitle.Location = new Point(16, 10);
             top.Controls.Add(lblTitle);
 
             // Row 1: keyword + action filter
-            top.Controls.Add(new Label { Text = "Keyword:", Location = new Point(0, 44), AutoSize = true, ForeColor = UiTheme.TextMuted });
-            txtSearch = new TextBox { Location = new Point(64, 41), Width = 220 };
+            top.Controls.Add(new Label { Text = "Keyword:", Location = new Point(16, 58), AutoSize = true, ForeColor = UiTheme.TextMuted });
+            txtSearch = new TextBox { Location = new Point(80, 55), Width = 220 };
             UiTheme.StyleTextBox(txtSearch);
             txtSearch.TextChanged += (s, e) => LoadGrid();
             top.Controls.Add(txtSearch);
 
-            top.Controls.Add(new Label { Text = "Action:", Location = new Point(300, 44), AutoSize = true, ForeColor = UiTheme.TextMuted });
-            cmbAction = new ComboBox { Location = new Point(352, 41), Width = 170, DropDownStyle = ComboBoxStyle.DropDownList };
+            top.Controls.Add(new Label { Text = "Action:", Location = new Point(316, 58), AutoSize = true, ForeColor = UiTheme.TextMuted });
+            cmbAction = new ComboBox { Location = new Point(368, 55), Width = 170, DropDownStyle = ComboBoxStyle.DropDownList };
             cmbAction.Items.AddRange(new object[] { "(All Actions)", "Login", "Logout", "Create", "Edit", "Cancel Order", "Delete", "Change Password" });
             cmbAction.SelectedIndex = 0;
             UiTheme.StyleComboBox(cmbAction);
@@ -51,21 +53,21 @@ namespace Prototype1.Forms
             top.Controls.Add(cmbAction);
 
             // Row 2: date range + record count
-            chkUseDate = new CheckBox { Text = "Date range:", Location = new Point(0, 74), AutoSize = true, ForeColor = UiTheme.TextMuted };
+            chkUseDate = new CheckBox { Text = "Date range:", Location = new Point(16, 94), AutoSize = true, ForeColor = UiTheme.TextMuted };
             chkUseDate.CheckedChanged += (s, e) => { dtpFrom.Enabled = dtpTo.Enabled = chkUseDate.Checked; LoadGrid(); };
             top.Controls.Add(chkUseDate);
 
-            dtpFrom = new DateTimePicker { Location = new Point(92, 71), Width = 130, Format = DateTimePickerFormat.Short, Enabled = false, Value = DateTime.Today.AddDays(-30) };
+            dtpFrom = new DateTimePicker { Location = new Point(108, 91), Width = 130, Format = DateTimePickerFormat.Short, Enabled = false, Value = DateTime.Today.AddDays(-30) };
             dtpFrom.ValueChanged += (s, e) => LoadGrid();
             top.Controls.Add(dtpFrom);
 
-            top.Controls.Add(new Label { Text = "to", Location = new Point(230, 74), AutoSize = true, ForeColor = UiTheme.TextMuted });
+            top.Controls.Add(new Label { Text = "to", Location = new Point(246, 94), AutoSize = true, ForeColor = UiTheme.TextMuted });
 
-            dtpTo = new DateTimePicker { Location = new Point(250, 71), Width = 130, Format = DateTimePickerFormat.Short, Enabled = false, Value = DateTime.Today };
+            dtpTo = new DateTimePicker { Location = new Point(266, 91), Width = 130, Format = DateTimePickerFormat.Short, Enabled = false, Value = DateTime.Today };
             dtpTo.ValueChanged += (s, e) => LoadGrid();
             top.Controls.Add(dtpTo);
 
-            lblCount = new Label { Location = new Point(400, 74), AutoSize = true, ForeColor = UiTheme.TextMuted };
+            lblCount = new Label { Location = new Point(416, 94), AutoSize = true, ForeColor = UiTheme.TextMuted };
             top.Controls.Add(lblCount);
 
             // ---- GRID (build but DO NOT add to Controls yet) ----
