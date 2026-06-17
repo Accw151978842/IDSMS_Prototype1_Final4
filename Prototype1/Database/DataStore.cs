@@ -229,7 +229,10 @@ namespace Prototype1.Database
                         PasswordHash = r.GetString("password_hash"),
                         FullName     = r.GetString("full_name"),
                         Role         = r.GetString("role"),
-                        Active       = r.GetBoolean("active")
+                        Active       = r.GetBoolean("active"),
+                        // staff_id is a newer column; tolerate older DBs that lack it.
+                        StaffId      = HasColumn(r, "staff_id") && !r.IsDBNull(r.GetOrdinal("staff_id"))
+                                           ? r.GetString("staff_id") : ""
                     });
             }
             return list;
@@ -240,8 +243,8 @@ namespace Prototype1.Database
             foreach (var u in Users)
             {
                 using (var cmd = new MySqlCommand(
-                    "INSERT INTO users(user_id,username,password_hash,full_name,role,active) " +
-                    "VALUES(@id,@un,@ph,@fn,@role,@active)", conn, tx))
+                    "INSERT INTO users(user_id,username,password_hash,full_name,role,active,staff_id) " +
+                    "VALUES(@id,@un,@ph,@fn,@role,@active,@sid)", conn, tx))
                 {
                     cmd.Parameters.AddWithValue("@id",     u.UserId);
                     cmd.Parameters.AddWithValue("@un",     u.Username);
@@ -249,6 +252,7 @@ namespace Prototype1.Database
                     cmd.Parameters.AddWithValue("@fn",     u.FullName);
                     cmd.Parameters.AddWithValue("@role",   u.Role);
                     cmd.Parameters.AddWithValue("@active", u.Active);
+                    cmd.Parameters.AddWithValue("@sid",    string.IsNullOrEmpty(u.StaffId) ? (object)DBNull.Value : u.StaffId);
                     cmd.ExecuteNonQuery();
                 }
             }

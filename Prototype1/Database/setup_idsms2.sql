@@ -31,7 +31,10 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(200) NOT NULL,
     full_name    VARCHAR(100) NOT NULL,
     role         VARCHAR(30)  NOT NULL,
-    active       TINYINT(1)   NOT NULL DEFAULT 1
+    active       TINYINT(1)   NOT NULL DEFAULT 1,
+    staff_id     VARCHAR(20)  NULL,                 -- links a login to a Staff master record
+    INDEX idx_users_staff (staff_id)
+    -- (no hard FK to staff: SaveAll() deletes staff in the same transaction)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Staff

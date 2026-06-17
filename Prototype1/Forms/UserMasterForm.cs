@@ -82,10 +82,17 @@ namespace Prototype1.Forms
             grid.Columns.Add("User", "Username");
             grid.Columns.Add("Name", "Full Name");
             grid.Columns.Add("Role", "Role");
+            grid.Columns.Add("Staff", "Linked Staff");
             grid.Columns.Add("Active", "Active");
             foreach (var u in DataStore.Users)
             {
-                grid.Rows.Add(u.UserId, u.Username, u.FullName, u.Role, u.Active ? "Yes" : "No");
+                string staffDisplay = "";
+                if (!string.IsNullOrEmpty(u.StaffId))
+                {
+                    var st = DataStore.StaffList.FirstOrDefault(x => x.StaffId == u.StaffId);
+                    staffDisplay = st != null ? (st.StaffId + " - " + st.FullName) : u.StaffId;
+                }
+                grid.Rows.Add(u.UserId, u.Username, u.FullName, u.Role, staffDisplay, u.Active ? "Yes" : "No");
             }
         }
 
@@ -140,7 +147,7 @@ namespace Prototype1.Forms
     {
         private readonly User original;
         private TextBox txtId, txtUser, txtName, txtPwd;
-        private ComboBox cmbRole;
+        private ComboBox cmbRole, cmbStaff;
         private CheckBox chkActive;
         private Label lblPwd;
 
@@ -148,7 +155,7 @@ namespace Prototype1.Forms
         {
             original = u;
             Text = u == null ? "New User" : "Edit User - " + u.Username;
-            ClientSize = new Size(470, 410);
+            ClientSize = new Size(470, 450);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
@@ -194,6 +201,27 @@ namespace Prototype1.Forms
             cmbRole.Items.AddRange(new object[] { "Administrator", "Sales", "Logistics", "Warehouse", "Service" });
             body.Controls.Add(cmbRole);
             y += 35;
+            // ---- Staff link: which employee this login belongs to ----
+            body.Controls.Add(new Label { Text = "Staff:", Location = new Point(20, y + 3), AutoSize = true });
+            cmbStaff = new ComboBox { Location = new Point(140, y), Width = 260, DropDownStyle = ComboBoxStyle.DropDownList };
+            cmbStaff.DropDownWidth = 360;
+            cmbStaff.Items.Add(new ListItem("", "(none)"));
+            foreach (var s in DataStore.StaffList)
+                cmbStaff.Items.Add(new ListItem(s.StaffId,
+                    s.StaffId + " - " + s.FullName + " (" + s.Position + ", " + s.Department + ")"));
+            cmbStaff.DisplayMember = "Display";
+            // Picking a staff auto-fills Full Name from the master record.
+            cmbStaff.SelectedIndexChanged += (s, e) =>
+            {
+                var sel = cmbStaff.SelectedItem as ListItem;
+                if (sel != null && !string.IsNullOrEmpty(sel.Value))
+                {
+                    var st = DataStore.StaffList.FirstOrDefault(x => x.StaffId == sel.Value);
+                    if (st != null) txtName.Text = st.FullName;
+                }
+            };
+            body.Controls.Add(cmbStaff);
+            y += 35;
             // Password row: label spans full row, TextBox on next line if label is long
             lblPwd = new Label { Text = "Password:", Location = new Point(20, y + 3), AutoSize = true };
             body.Controls.Add(lblPwd);
@@ -226,6 +254,7 @@ namespace Prototype1.Forms
             {
                 txtId.Text = DataStore.NextId("U", DataStore.Users.Select(u => u.UserId));
                 cmbRole.SelectedIndex = 1;
+                if (cmbStaff.Items.Count > 0) cmbStaff.SelectedIndex = 0;   // (none)
                 chkActive.Checked = true;
                 lblPwd.Text = "Password:";
             }
@@ -237,6 +266,16 @@ namespace Prototype1.Forms
                 txtName.Text = original.FullName;
                 cmbRole.SelectedItem = original.Role;
                 chkActive.Checked = original.Active;
+                // Re-select the linked staff (or '(none)')
+                cmbStaff.SelectedIndex = 0;
+                for (int i = 0; i < cmbStaff.Items.Count; i++)
+                {
+                    if (((ListItem)cmbStaff.Items[i]).Value == (original.StaffId ?? ""))
+                    {
+                        cmbStaff.SelectedIndex = i;
+                        break;
+                    }
+                }
                 lblPwd.Text = "New Password:";
                 lblPwd.AutoSize = true;
                 // Hint text BELOW the input field; push Active and buttons down
@@ -275,6 +314,21 @@ namespace Prototype1.Forms
             }
             if (!v.ValidateAll()) return;
 
+            // Resolve the chosen staff link (may be empty = not linked).
+            string staffId = (cmbStaff.SelectedItem as ListItem)?.Value ?? "";
+            // One staff member should map to at most one login account.
+            if (!string.IsNullOrEmpty(staffId))
+            {
+                bool takenByOther = DataStore.Users.Any(x =>
+                    string.Equals(x.StaffId, staffId, StringComparison.OrdinalIgnoreCase) &&
+                    (original == null || !string.Equals(x.UserId, original.UserId, StringComparison.OrdinalIgnoreCase)));
+                if (takenByOther)
+                {
+                    UiTheme.ShowWarning(this, "That staff member is already linked to another account.");
+                    return;
+                }
+            }
+
             if (original == null)
             {
                 if (DataStore.Users.Any(x => string.Equals(x.Username, txtUser.Text.Trim(), StringComparison.OrdinalIgnoreCase)))
@@ -289,7 +343,8 @@ namespace Prototype1.Forms
                     FullName = txtName.Text.Trim(),
                     Role = cmbRole.SelectedItem as string ?? "Sales",
                     PasswordHash = SecurityService.Hash(txtPwd.Text),
-                    Active = chkActive.Checked
+                    Active = chkActive.Checked,
+                    StaffId = staffId
                 };
                 DataStore.Users.Add(u);
                 SecurityService.Audit(SecurityService.CurrentUser != null ? SecurityService.CurrentUser.Username : "", "New User", u.Username);
@@ -299,6 +354,7 @@ namespace Prototype1.Forms
                 original.FullName = txtName.Text.Trim();
                 original.Role = cmbRole.SelectedItem as string ?? original.Role;
                 original.Active = chkActive.Checked;
+                original.StaffId = staffId;
                 if (!string.IsNullOrEmpty(txtPwd.Text))
                 {
                     if (txtPwd.Text.Length < 5) { UiTheme.ShowWarning(this, "Password must be at least 5 characters."); return; }

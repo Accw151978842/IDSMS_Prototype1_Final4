@@ -13,6 +13,7 @@ namespace Prototype1.Models
         [DataMember] public string FullName { get; set; }
         [DataMember] public string Role { get; set; }
         [DataMember] public bool Active { get; set; }
+        [DataMember] public string StaffId { get; set; }   // links this login to a Staff master record (nullable)
     }
 
     [DataContract]

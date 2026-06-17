@@ -13,6 +13,28 @@
 USE idsms2;
 
 -- ------------------------------------------------------------
+--  0) Link User -> Staff : add users.staff_id (idempotent)
+--     Adds the column only if it does not already exist, so this
+--     script stays safe to re-run.
+-- ------------------------------------------------------------
+SET @col_exists := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = 'idsms2' AND TABLE_NAME = 'users' AND COLUMN_NAME = 'staff_id'
+);
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE users ADD COLUMN staff_id VARCHAR(20) NULL, ADD INDEX idx_users_staff (staff_id)',
+    'SELECT "users.staff_id already exists"');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- (Optional) link the seeded demo logins to their Staff records.
+-- Safe even if staff rows are absent (UPDATE just affects 0 rows).
+UPDATE users SET staff_id = 'S00001' WHERE username = 'sales'     AND (staff_id IS NULL OR staff_id = '');
+UPDATE users SET staff_id = 'S00004' WHERE username = 'logistics' AND (staff_id IS NULL OR staff_id = '');
+UPDATE users SET staff_id = 'S00003' WHERE username = 'warehouse' AND (staff_id IS NULL OR staff_id = '');
+
+-- ------------------------------------------------------------
 --  1) Raw Material Requests (Production)
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS raw_material_requests (
