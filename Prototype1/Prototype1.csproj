@@ -103,6 +103,7 @@
     <Compile Include="Database\DataStore.cs" />
     <Compile Include="Database\SeedData.cs" />
     <Compile Include="Database\SecurityService.cs" />
+    <Compile Include="Database\InventoryService.cs" />
     <Compile Include="Forms\UiTheme.cs" />
     <Compile Include="Forms\Validation.cs" />
     <Compile Include="Forms\LoginForm.cs">

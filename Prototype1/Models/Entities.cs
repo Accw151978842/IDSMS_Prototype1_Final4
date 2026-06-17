@@ -74,6 +74,11 @@ namespace Prototype1.Models
         [DataMember] public DateTime RequiredDate { get; set; }
         [DataMember] public string Remarks { get; set; }
         [DataMember] public string CreatedBy { get; set; }
+        // True once this order has shipped and its quantities have been
+        // deducted from item stock. Prevents double-deduction when the order
+        // is saved again (e.g. moving Shipped -> Completed) and lets a later
+        // cancellation restore the stock exactly once.
+        [DataMember] public bool StockDeducted { get; set; }
         [DataMember] public List<SalesOrderLine> Lines { get; set; }
 
         public SalesOrder()

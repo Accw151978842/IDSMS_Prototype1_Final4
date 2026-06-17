@@ -162,6 +162,19 @@ namespace Prototype1.Database
             return false;
         }
 
+        // Returns true if the open reader exposes a column with the given
+        // name (case-insensitive). Used to stay compatible with older
+        // databases that may not have newly-added columns yet.
+        private static bool HasColumn(MySqlDataReader r, string columnName)
+        {
+            for (int i = 0; i < r.FieldCount; i++)
+            {
+                if (string.Equals(r.GetName(i), columnName, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
+
         // ============================================================
         //  NEXT ID HELPER
         // ============================================================
@@ -443,7 +456,11 @@ namespace Prototype1.Database
                             Status       = r.GetString("status"),
                             RequiredDate = r.GetDateTime("required_date"),
                             Remarks      = r.IsDBNull(r.GetOrdinal("remarks"))    ? "" : r.GetString("remarks"),
-                            CreatedBy    = r.IsDBNull(r.GetOrdinal("created_by")) ? "" : r.GetString("created_by")
+                            CreatedBy    = r.IsDBNull(r.GetOrdinal("created_by")) ? "" : r.GetString("created_by"),
+                            // Tolerate older databases created before this column existed.
+                            StockDeducted = HasColumn(r, "stock_deducted") &&
+                                            !r.IsDBNull(r.GetOrdinal("stock_deducted")) &&
+                                            r.GetBoolean("stock_deducted")
                         });
                 }
                 foreach (var order in list)
@@ -489,8 +506,8 @@ namespace Prototype1.Database
                         "' which does not exist. Please create the customer first or pick a valid one.");
                 }
                 using (var cmd = new MySqlCommand(
-                    "INSERT INTO sales_orders(order_id,order_date,customer_id,status,required_date,remarks,created_by) " +
-                    "VALUES(@id,@od,@cid,@st,@rd,@rem,@cb)", conn, tx))
+                    "INSERT INTO sales_orders(order_id,order_date,customer_id,status,required_date,remarks,created_by,stock_deducted) " +
+                    "VALUES(@id,@od,@cid,@st,@rd,@rem,@cb,@sd)", conn, tx))
                 {
                     cmd.Parameters.AddWithValue("@id",  o.OrderId);
                     cmd.Parameters.AddWithValue("@od",  o.OrderDate.Date);
@@ -499,6 +516,7 @@ namespace Prototype1.Database
                     cmd.Parameters.AddWithValue("@rd",  o.RequiredDate.Date);
                     cmd.Parameters.AddWithValue("@rem", o.Remarks ?? "");
                     cmd.Parameters.AddWithValue("@cb",  o.CreatedBy ?? "");
+                    cmd.Parameters.AddWithValue("@sd",  o.StockDeducted ? 1 : 0);
                     cmd.ExecuteNonQuery();
                 }
                 foreach (var ln in o.Lines)

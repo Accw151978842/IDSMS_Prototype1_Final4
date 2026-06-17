@@ -278,11 +278,16 @@ namespace Prototype1.Forms
             working.Status       = cmbStatus.SelectedItem as string ?? "Pending";
             working.Remarks      = txtRemarks.Text.Trim();
 
+            // The order object that will actually be persisted: the new
+            // record for a create, or the existing record for an edit.
+            SalesOrder target;
+
             bool added = false;
             if (original == null)
             {
                 DataStore.SalesOrders.Add(working);
                 added = true;
+                target = working;
                 SecurityService.Audit(SecurityService.CurrentUser != null ? SecurityService.CurrentUser.Username : "", "Create Order", working.OrderId);
             }
             else
@@ -301,8 +306,28 @@ namespace Prototype1.Forms
                         Quantity  = l.Quantity,
                         UnitPrice = l.UnitPrice
                     });
+                target = original;
                 SecurityService.Audit(SecurityService.CurrentUser != null ? SecurityService.CurrentUser.Username : "", "Edit Order", working.OrderId);
             }
+
+            // ---- Stock movement on shipping --------------------------------
+            // If this save moves the order into a shipped state for the first
+            // time, make sure there is enough stock before deducting. Stock is
+            // restored automatically if it is moved back out of a shipped state.
+            bool firstTimeShipping = InventoryService.IsShippedStatus(target.Status)
+                && !target.StockDeducted;
+            if (firstTimeShipping)
+            {
+                string shortage;
+                if (!InventoryService.CanFulfill(target, out shortage))
+                {
+                    if (added) DataStore.SalesOrders.Remove(working);
+                    UiTheme.ShowWarning(this, shortage +
+                        "\r\n\r\nRecord more inward goods or reduce the order quantity, then try again.");
+                    return;
+                }
+            }
+            InventoryService.ApplyStatusChange(target);
 
             try { DataStore.SaveAll(); }
             catch (MySql.Data.MySqlClient.MySqlException ex)

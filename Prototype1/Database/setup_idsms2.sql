@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS sales_orders (
     required_date  DATE         NOT NULL,
     remarks        VARCHAR(500),
     created_by     VARCHAR(50),
+    stock_deducted TINYINT(1)   NOT NULL DEFAULT 0,  -- 1 once shipped & stock deducted
     FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

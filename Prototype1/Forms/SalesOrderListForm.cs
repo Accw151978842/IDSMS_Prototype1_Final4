@@ -195,6 +195,7 @@ namespace Prototype1.Forms
             if (o == null) { UiTheme.ShowWarning(this, "Please select an order first."); return; }
             if (!UiTheme.ShowConfirm(this, "Cancel order " + o.OrderId + "?")) return;
             o.Status = "Cancelled";
+            InventoryService.RestoreOnCancel(o);
             SecurityService.Audit(
                 SecurityService.CurrentUser != null ? SecurityService.CurrentUser.Username : "",
                 "Cancel Order", o.OrderId);
