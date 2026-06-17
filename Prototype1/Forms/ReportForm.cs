@@ -86,11 +86,11 @@ namespace Prototype1.Forms
             top.Controls.Add(chkDateRange);
 
             top.Controls.Add(new Label { Text = "From:", Location = new Point(500, 78), AutoSize = true, ForeColor = UiTheme.TextMuted });
-            dtpFrom = new DateTimePicker { Location = new Point(540, 75), Width = 120, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy", Enabled = false, Value = DateTime.Today.AddMonths(-6) };
+            dtpFrom = new DateTimePicker { Location = new Point(548, 75), Width = 120, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy", Enabled = false, Value = DateTime.Today.AddMonths(-6) };
             top.Controls.Add(dtpFrom);
 
-            top.Controls.Add(new Label { Text = "To:", Location = new Point(672, 78), AutoSize = true, ForeColor = UiTheme.TextMuted });
-            dtpTo = new DateTimePicker { Location = new Point(700, 75), Width = 120, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy", Enabled = false, Value = DateTime.Today };
+            top.Controls.Add(new Label { Text = "To:", Location = new Point(690, 78), AutoSize = true, ForeColor = UiTheme.TextMuted });
+            dtpTo = new DateTimePicker { Location = new Point(722, 75), Width = 120, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy", Enabled = false, Value = DateTime.Today };
             top.Controls.Add(dtpTo);
 
             // Keep the range valid: From can never be later than To, and To never earlier than From.
