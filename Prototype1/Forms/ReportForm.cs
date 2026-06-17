@@ -87,13 +87,26 @@ namespace Prototype1.Forms
 
             top.Controls.Add(new Label { Text = "From:", Location = new Point(500, 78), AutoSize = true, ForeColor = UiTheme.TextMuted });
             dtpFrom = new DateTimePicker { Location = new Point(540, 75), Width = 120, Format = DateTimePickerFormat.Short, Enabled = false, Value = DateTime.Today.AddMonths(-6) };
-            dtpFrom.ValueChanged += (s, e) => { if (chkDateRange.Checked) RunReport(); };
             top.Controls.Add(dtpFrom);
 
             top.Controls.Add(new Label { Text = "To:", Location = new Point(672, 78), AutoSize = true, ForeColor = UiTheme.TextMuted });
             dtpTo = new DateTimePicker { Location = new Point(700, 75), Width = 120, Format = DateTimePickerFormat.Short, Enabled = false, Value = DateTime.Today };
-            dtpTo.ValueChanged += (s, e) => { if (chkDateRange.Checked) RunReport(); };
             top.Controls.Add(dtpTo);
+
+            // Keep the range valid: From can never be later than To, and To never earlier than From.
+            dtpFrom.ValueChanged += (s, e) =>
+            {
+                if (dtpTo.MinDate != dtpFrom.Value.Date) dtpTo.MinDate = dtpFrom.Value.Date;
+                if (chkDateRange.Checked) RunReport();
+            };
+            dtpTo.ValueChanged += (s, e) =>
+            {
+                if (dtpFrom.MaxDate != dtpTo.Value.Date) dtpFrom.MaxDate = dtpTo.Value.Date;
+                if (chkDateRange.Checked) RunReport();
+            };
+            // Apply the initial constraint based on the default values.
+            dtpTo.MinDate = dtpFrom.Value.Date;
+            dtpFrom.MaxDate = dtpTo.Value.Date;
 
             // ---- BOTTOM bar ----
             var bottom = UiTheme.BuildBottomBar(64);
