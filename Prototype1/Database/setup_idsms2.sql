@@ -205,7 +205,43 @@ CREATE TABLE IF NOT EXISTS procurement_lines (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
---  完成 — 全部 15 個 tables 已建立
+--  QUOTATIONS (P2 enhancement)
+--  Flow: RMR -> RFQ -> 多個 supplier 報價 -> 揀中 -> Convert to PO
+--  ★ 必須建立：DataStore.SaveAll() 會 DELETE/INSERT 呢兩個表，
+--    如果缺少，一登入做 SaveAll() 就會掉 exception、儲存失敗。
+-- ============================================================
+CREATE TABLE IF NOT EXISTS quotations (
+    quotation_id     VARCHAR(20)  NOT NULL,
+    quotation_no     VARCHAR(50),                  -- supplier-side reference
+    rmr_id           VARCHAR(20),                  -- linked RMR (nullable)
+    supplier_id      VARCHAR(20),
+    quote_date       DATE         NOT NULL,
+    valid_until      DATE,
+    lead_time_days   INT,
+    payment_terms    VARCHAR(100),
+    status           VARCHAR(20)  NOT NULL DEFAULT 'Pending',  -- Pending/Selected/Rejected/Expired/Converted
+    converted_po_id  VARCHAR(20),                  -- PO id after conversion
+    created_by       VARCHAR(50),
+    remarks          VARCHAR(500),
+    PRIMARY KEY (quotation_id),
+    INDEX idx_quot_rmr (rmr_id),
+    INDEX idx_quot_sup (supplier_id),
+    INDEX idx_quot_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS quotation_lines (
+    line_id          INT          AUTO_INCREMENT,
+    quotation_id     VARCHAR(20)  NOT NULL,
+    item_id          VARCHAR(20)  NOT NULL,
+    item_name        VARCHAR(255),
+    quantity         INT          NOT NULL DEFAULT 0,
+    unit_price       DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    PRIMARY KEY (line_id),
+    INDEX idx_qline_qid (quotation_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+--  完成 — 全部 17 個 tables 已建立
 --  下一步：
 --    1) 啟動 IDSMS app  → DataStore 會自動 seed Users/Staff/
 --       Customers/Suppliers/Items/SalesOrders/RMR/PO base data
