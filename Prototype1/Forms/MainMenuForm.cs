@@ -634,7 +634,14 @@ namespace Prototype1.Forms
             pnlContent.Resize += SyncTileWidth;
             SyncTileWidth(null, null);
 
-            // ---- Recent audit ----
+            // ---- Recent audit (Administrator only) ----
+            // Audit trail is a system-administration concern, so non-admin roles
+            // (Sales, Logistics, Warehouse, Service) should not see other users'
+            // activity on the dashboard.
+            bool isAdmin = SecurityService.CurrentUser != null &&
+                string.Equals(SecurityService.CurrentUser.Role, "Administrator", StringComparison.OrdinalIgnoreCase);
+            if (!isAdmin) return;
+
             pnlContent.Controls.Add(new Label
             {
                 Text      = "RECENT AUDIT ACTIVITY",
