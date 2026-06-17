@@ -11,6 +11,8 @@ namespace Prototype1.Forms
     {
         private DataGridView grid;
         private Button btnNew, btnEdit, btnClose;
+        private TextBox txtSearch;
+        private ComboBox cmbConditionFilter;
 
         public GoodsReceivedForm()
         {
@@ -25,10 +27,23 @@ namespace Prototype1.Forms
         private void BuildUI()
         {
             // 1. TOP
-            var top = UiTheme.BuildToolbar(60);
+            var top = UiTheme.BuildToolbar(96);
             var lblTitle = UiTheme.BuildHeading("Goods Received Notes");
             lblTitle.Location = new Point(0, 14);
             top.Controls.Add(lblTitle);
+
+            top.Controls.Add(new Label { Text = "Search:", Location = new Point(0, 62), AutoSize = true, ForeColor = UiTheme.TextMuted });
+            txtSearch = new TextBox { Location = new Point(56, 59), Width = 240, BorderStyle = BorderStyle.FixedSingle };
+            UiTheme.StyleTextBox(txtSearch);
+            txtSearch.TextChanged += (s, e) => LoadGrid();
+            top.Controls.Add(txtSearch);
+
+            top.Controls.Add(new Label { Text = "Condition:", Location = new Point(314, 62), AutoSize = true, ForeColor = UiTheme.TextMuted });
+            cmbConditionFilter = new ComboBox { Location = new Point(386, 59), Width = 150, DropDownStyle = ComboBoxStyle.DropDownList };
+            cmbConditionFilter.Items.AddRange(new object[] { "All Conditions", "Good", "Damaged", "Partial" });
+            cmbConditionFilter.SelectedIndex = 0;
+            cmbConditionFilter.SelectedIndexChanged += (s, e) => LoadGrid();
+            top.Controls.Add(cmbConditionFilter);
 
             // 2. BOTTOM
 
@@ -85,12 +100,29 @@ namespace Prototype1.Forms
             grid.Columns.Add("Remarks", "Remarks");
             UiTheme.AlignNumericColumns(grid);
 
+            string keyword = txtSearch != null ? txtSearch.Text.Trim().ToLowerInvariant() : "";
+            string conditionFilter = cmbConditionFilter != null ? cmbConditionFilter.SelectedItem as string : "All Conditions";
+
             foreach (var g in DataStore.Receipts)
             {
                 var sup = DataStore.Suppliers.FirstOrDefault(s => s.SupplierId == g.SupplierId);
                 string supName = sup != null ? sup.CompanyName : g.SupplierId;
                 var item = DataStore.Items.FirstOrDefault(i => i.ItemId == g.ItemId);
                 string itemName = item != null ? item.ItemName : g.ItemId;
+
+                // Condition filter
+                if (!string.IsNullOrEmpty(conditionFilter) && conditionFilter != "All Conditions"
+                    && !string.Equals(g.Condition, conditionFilter, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                // Keyword search across receipt id, supplier, item, PO no., received by
+                if (keyword.Length > 0)
+                {
+                    string haystack = ((g.ReceiptId ?? "") + " " + supName + " " + itemName + " "
+                        + (g.PurchaseOrderNo ?? "") + " " + (g.ReceivedBy ?? "")).ToLowerInvariant();
+                    if (!haystack.Contains(keyword)) continue;
+                }
+
                 grid.Rows.Add(g.ReceiptId, supName, g.ReceiveDate.ToString("yyyy-MM-dd"),
                     itemName, g.Quantity, g.PurchaseOrderNo, g.ReceivedBy, g.Condition, g.Remarks);
             }

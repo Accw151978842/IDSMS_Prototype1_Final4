@@ -11,6 +11,8 @@ namespace Prototype1.Forms
     {
         private DataGridView grid;
         private Button btnGenerate, btnEdit, btnReplySlip, btnPreview, btnClose;
+        private TextBox txtSearch;
+        private ComboBox cmbStatusFilter;
 
         public DeliveryNoteForm()
         {
@@ -25,11 +27,24 @@ namespace Prototype1.Forms
         private void BuildUI()
         {
             // 1. TOP
-            var top = UiTheme.BuildToolbar(80);
+            var top = UiTheme.BuildToolbar(116);
             var lblTitle = UiTheme.BuildHeading("Delivery Schedule and Reply Slip");
             lblTitle.Location = new Point(16, 10);
             top.Controls.Add(lblTitle);
             top.Controls.Add(new Label { Text = "Track delivery progress, capture reply slip and customer acknowledgement.", Location = new Point(16, 44), AutoSize = true, ForeColor = UiTheme.TextMuted });
+
+            top.Controls.Add(new Label { Text = "Search:", Location = new Point(16, 84), AutoSize = true, ForeColor = UiTheme.TextMuted });
+            txtSearch = new TextBox { Location = new Point(72, 81), Width = 240, BorderStyle = BorderStyle.FixedSingle };
+            UiTheme.StyleTextBox(txtSearch);
+            txtSearch.TextChanged += (s, e) => LoadGrid();
+            top.Controls.Add(txtSearch);
+
+            top.Controls.Add(new Label { Text = "Status:", Location = new Point(330, 84), AutoSize = true, ForeColor = UiTheme.TextMuted });
+            cmbStatusFilter = new ComboBox { Location = new Point(382, 81), Width = 150, DropDownStyle = ComboBoxStyle.DropDownList };
+            cmbStatusFilter.Items.AddRange(new object[] { "All Status", "Scheduled", "In Transit", "Delivered", "Failed" });
+            cmbStatusFilter.SelectedIndex = 0;
+            cmbStatusFilter.SelectedIndexChanged += (s, e) => LoadGrid();
+            top.Controls.Add(cmbStatusFilter);
 
             // 2. BOTTOM
             var bottom = UiTheme.BuildBottomBar(64);
@@ -89,6 +104,9 @@ namespace Prototype1.Forms
             grid.Columns.Add("Reply", "Reply Slip");
             UiTheme.AlignNumericColumns(grid);
 
+            string keyword = txtSearch != null ? txtSearch.Text.Trim().ToLowerInvariant() : "";
+            string statusFilter = cmbStatusFilter != null ? cmbStatusFilter.SelectedItem as string : "All Status";
+
             foreach (var d in DataStore.Deliveries)
             {
                 var order = DataStore.SalesOrders.FirstOrDefault(o => o.OrderId == d.OrderId);
@@ -98,6 +116,20 @@ namespace Prototype1.Forms
                     var c = DataStore.Customers.FirstOrDefault(x => x.CustomerId == order.CustomerId);
                     if (c != null) cust = c.CompanyName;
                 }
+
+                // Status filter
+                if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All Status"
+                    && !string.Equals(d.Status, statusFilter, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                // Keyword search across delivery no., order no., customer, driver, vehicle
+                if (keyword.Length > 0)
+                {
+                    string haystack = ((d.DeliveryId ?? "") + " " + (d.OrderId ?? "") + " " + cust + " "
+                        + (d.DriverName ?? "") + " " + (d.VehicleNo ?? "")).ToLowerInvariant();
+                    if (!haystack.Contains(keyword)) continue;
+                }
+
                 grid.Rows.Add(d.DeliveryId, d.OrderId, cust, d.DeliveryDate.ToString("yyyy-MM-dd"),
                     d.DriverName, d.VehicleNo, d.Status, d.ReplySlipStatus);
             }
