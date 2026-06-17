@@ -35,9 +35,9 @@ INSERT INTO dbo.Suppliers (SupplierId, CompanyName, ContactPerson, Phone, Email,
 
 -- Staff
 INSERT INTO dbo.Staff (StaffId, FullName, Position, Department, Phone, Email, HireDate) VALUES
- ('S00001','Chan Tai Man','Sales Manager','Sales','98765432','tmchan@plf.com.hk','2020-03-01'),
- ('S00002','Wong Siu Ling','Sales Officer','Sales','97654321','slwong@plf.com.hk','2021-06-15'),
- ('S00003','Lee Ka Ho','Warehouse Supervisor','Warehouse','96543210','khlee@plf.com.hk','2019-09-01'),
+ ('S00001','Chan Tai Man','Sales Manager','Sales and Marketing','98765432','tmchan@plf.com.hk','2020-03-01'),
+ ('S00002','Wong Siu Ling','Sales Officer','Sales and Marketing','97654321','slwong@plf.com.hk','2021-06-15'),
+ ('S00003','Lee Ka Ho','Warehouse Supervisor','Inventory Control','96543210','khlee@plf.com.hk','2019-09-01'),
  ('S00004','Cheung Mei Yee','Logistics Officer','Logistics','95432109','mycheung@plf.com.hk','2022-01-10');
 
 -- Items

@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS procurement_lines (
 
 -- Raw Material Requests
 INSERT IGNORE INTO raw_material_requests(rmr_id, request_date, requested_by, department, status, notes) VALUES
-('RMR00001', CURDATE() - INTERVAL 5 DAY, 'S00003', 'Warehouse',  'Approved', 'Restock fast-moving office furniture'),
+('RMR00001', CURDATE() - INTERVAL 5 DAY, 'S00003', 'Inventory Control', 'Approved', 'Restock fast-moving office furniture'),
 ('RMR00002', CURDATE() - INTERVAL 2 DAY, 'S00001', 'Production', 'Pending',  'Living-room set for upcoming hotel project');
 
 -- RMR Lines

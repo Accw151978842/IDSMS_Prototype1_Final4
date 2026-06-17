@@ -1,6 +1,6 @@
 -- ============================================================
 --  IDSMS  —  Setup script for NEW database `idsms2`
---  建立全新空白資料庫 + 全部 15 個 tables
+--  建立全新空白資料庫 + 全部 19 個 tables
 --  IDSMS app 第一次 run 嘅時候，DataStore.LoadAll() 會自動 seed
 --  Users / Staff / Customers / Suppliers / Items / Sales Orders 等
 --  Base data。 RMR + Procurement sample data 由本檔案 INSERT。
