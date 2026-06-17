@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Drawing;
 using System.Windows.Forms;
 using Prototype1.Database;
@@ -228,38 +230,70 @@ namespace Prototype1.Forms
             pnlSidebarScroll.Controls.Clear();
             _navY = 8;
 
-            AddNavGroup("ORDER PROCESSING");
-            AddNavButton("  Sales Orders",         (s, e) => RequireRoleAndOpen(new SalesOrderListForm(),    "Sales", "Logistics", "Warehouse"));
+            // Each group: only emit header if at least one button is visible for current role.
+            // Admin auto-passes via SecurityService.HasRole() bypass.
 
-            AddNavGroup("LOGISTICS");
-            AddNavButton("  Delivery Notes",       (s, e) => RequireRoleAndOpen(new DeliveryNoteForm(),      "Logistics"));
-            AddNavButton("  Inward / Return Goods",(s, e) => RequireRoleAndOpen(new GoodsReceivedForm(),     "Logistics", "Warehouse"));
+            AddGroupWithButtons("ORDER PROCESSING", new[] {
+                Nav("  Sales Orders",          () => new SalesOrderListForm(),    "Sales", "Logistics", "Warehouse"),
+            });
 
-            AddNavGroup("INVENTORY");
-            AddNavButton("  Item Master / Stock",  (s, e) => RequireRoleAndOpen(new ItemMasterForm(),        "Warehouse", "Sales"));
+            AddGroupWithButtons("LOGISTICS", new[] {
+                Nav("  Delivery Notes",        () => new DeliveryNoteForm(),      "Logistics"),
+                Nav("  Inward / Return Goods", () => new GoodsReceivedForm(),     "Logistics", "Warehouse"),
+            });
 
-            AddNavGroup("PRODUCTION");
-            AddNavButton("  Raw Material Requests",(s, e) => RequireRoleAndOpen(new RawMaterialRequestForm(),"Administrator", "Warehouse", "Logistics"));
+            AddGroupWithButtons("INVENTORY", new[] {
+                Nav("  Item Master / Stock",   () => new ItemMasterForm(),        "Warehouse", "Sales"),
+            });
 
-            AddNavGroup("PROCUREMENT");
-            AddNavButton("  Purchase Orders",      (s, e) => RequireRoleAndOpen(new ProcurementForm(),       "Administrator", "Warehouse", "Logistics"));
+            AddGroupWithButtons("PRODUCTION", new[] {
+                Nav("  Raw Material Requests", () => new RawMaterialRequestForm(),"Warehouse", "Logistics"),
+            });
 
-            AddNavGroup("AFTER-SERVICE");
-            AddNavButton("  Return / Replacement", (s, e) => RequireRoleAndOpen(new AfterServiceForm(),      "Service", "Sales"));
+            AddGroupWithButtons("PROCUREMENT", new[] {
+                Nav("  Purchase Orders",       () => new ProcurementForm(),       "Warehouse", "Logistics"),
+            });
 
-            AddNavGroup("MASTER DATA");
-            AddNavButton("  Customers",            (s, e) => RequireRoleAndOpen(new CustomerMasterForm(),    "Sales", "Service"));
-            AddNavButton("  Suppliers",            (s, e) => RequireRoleAndOpen(new SupplierMasterForm(),    "Warehouse", "Logistics"));
-            AddNavButton("  Staff",                (s, e) => RequireRoleAndOpen(new StaffMasterForm(),       "Administrator", "Sales", "Logistics", "Warehouse", "Service"));
+            AddGroupWithButtons("AFTER-SERVICE", new[] {
+                Nav("  Return / Replacement",  () => new AfterServiceForm(),      "Service", "Sales"),
+            });
 
-            AddNavGroup("ADMINISTRATION");
-            AddNavButton("  User Accounts",        (s, e) => RequireRoleAndOpen(new UserMasterForm(),        "Administrator"));
+            AddGroupWithButtons("MASTER DATA", new[] {
+                Nav("  Customers",             () => new CustomerMasterForm(),    "Sales", "Service"),
+                Nav("  Suppliers",             () => new SupplierMasterForm(),    "Warehouse", "Logistics"),
+                Nav("  Staff",                 () => new StaffMasterForm(),       "Administrator"),
+            });
+
+            AddGroupWithButtons("ADMINISTRATION", new[] {
+                Nav("  User Accounts",         () => new UserMasterForm(),        "Administrator"),
+                Nav("  Audit Log",             () => new AuditLogForm(),          "Administrator"),
+            });
 
             // Record content height for our custom scroll logic
             _contentHeight = _navY + 8;
             _scrollY = 0;
             ApplyScroll();
             UpdateThumb();
+        }
+
+        // ------------------------------------------------------------
+        // RBAC-aware sidebar helpers
+        // ------------------------------------------------------------
+        private (string label, Func<Form> factory, string[] roles) Nav(
+            string label, Func<Form> factory, params string[] roles)
+            => (label, factory, roles);
+
+        private void AddGroupWithButtons(string groupName,
+            (string label, Func<Form> factory, string[] roles)[] items)
+        {
+            var visible = items.Where(i => SecurityService.HasRole(i.roles)).ToList();
+            if (visible.Count == 0) return;   // hide entire group when no button is allowed
+            AddNavGroup(groupName);
+            foreach (var it in visible)
+            {
+                var factory = it.factory;
+                AddNavButton(it.label, (s, e) => Open(factory()));
+            }
         }
 
         // ============================================================
@@ -551,30 +585,44 @@ namespace Prototype1.Forms
             int totalCustomers = DataStore.Customers.Count;
             int totalItems     = DataStore.Items.Count;
 
-            tilePanel.Controls.Add(MakeTile("Open Orders",        openOrders.ToString(),     "Click to view",
-                Color.FromArgb(13, 94, 118),
-                (s, e) => RequireRoleAndOpen(new SalesOrderListForm(),  "Sales", "Logistics", "Warehouse")), 0, 0);
+            // Role-filtered dashboard tiles. Auto-grid so layout adapts when some tiles are hidden.
+            var tiles = new List<(string title, string value, string sub, Color color, Func<Form> factory, string[] roles)>
+            {
+                ("Open Orders",        openOrders.ToString(),     "Click to view",
+                    Color.FromArgb(13, 94, 118),  () => new SalesOrderListForm(), new[]{"Sales","Logistics","Warehouse"}),
+                ("Pending Deliveries", pendingDel.ToString(),     "Click to view",
+                    Color.FromArgb(39, 174, 96),  () => new DeliveryNoteForm(),   new[]{"Logistics"}),
+                ("After-Service Open", openService.ToString(),    "Click to view",
+                    Color.FromArgb(230, 126, 34), () => new AfterServiceForm(),   new[]{"Service","Sales"}),
+                ("Low Stock Items",    lowStock.ToString(),
+                    lowStock > 0 ? "Needs attention" : "All OK",
+                    lowStock > 0 ? Color.FromArgb(192, 57, 43) : Color.FromArgb(39, 174, 96),
+                    () => new ItemMasterForm(),   new[]{"Warehouse","Sales"}),
+                ("Total Customers",    totalCustomers.ToString(), "Click to view",
+                    Color.FromArgb(125, 60, 152), () => new CustomerMasterForm(), new[]{"Sales","Service"}),
+                ("Total Items",        totalItems.ToString(),     "Click to view",
+                    Color.FromArgb(52, 73, 94),   () => new ItemMasterForm(),     new[]{"Warehouse","Sales"}),
+            };
 
-            tilePanel.Controls.Add(MakeTile("Pending Deliveries", pendingDel.ToString(),     "Click to view",
-                Color.FromArgb(39, 174, 96),
-                (s, e) => RequireRoleAndOpen(new DeliveryNoteForm(),    "Logistics")), 1, 0);
+            var visibleTiles = tiles.Where(t => SecurityService.HasRole(t.roles)).ToList();
+            int cols = 3;
+            int rows = Math.Max(1, (int)Math.Ceiling(visibleTiles.Count / (double)cols));
+            // resize panel rows to match
+            tilePanel.RowStyles.Clear();
+            tilePanel.RowCount = rows;
+            for (int r = 0; r < rows; r++)
+                tilePanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 120F));
+            tilePanel.Height = rows * 120;
 
-            tilePanel.Controls.Add(MakeTile("After-Service Open", openService.ToString(),    "Click to view",
-                Color.FromArgb(230, 126, 34),
-                (s, e) => RequireRoleAndOpen(new AfterServiceForm(),    "Service", "Sales")), 2, 0);
-
-            tilePanel.Controls.Add(MakeTile("Low Stock Items",    lowStock.ToString(),
-                lowStock > 0 ? "Needs attention" : "All OK",
-                lowStock > 0 ? Color.FromArgb(192, 57, 43) : Color.FromArgb(39, 174, 96),
-                (s, e) => RequireRoleAndOpen(new ItemMasterForm(),      "Warehouse", "Sales")), 0, 1);
-
-            tilePanel.Controls.Add(MakeTile("Total Customers",    totalCustomers.ToString(), "Click to view",
-                Color.FromArgb(125, 60, 152),
-                (s, e) => RequireRoleAndOpen(new CustomerMasterForm(),  "Sales", "Service")), 1, 1);
-
-            tilePanel.Controls.Add(MakeTile("Total Items",        totalItems.ToString(),     "Click to view",
-                Color.FromArgb(52, 73, 94),
-                (s, e) => RequireRoleAndOpen(new ItemMasterForm(),      "Warehouse", "Sales")), 2, 1);
+            for (int i = 0; i < visibleTiles.Count; i++)
+            {
+                var t = visibleTiles[i];
+                var factory = t.factory;
+                tilePanel.Controls.Add(
+                    MakeTile(t.title, t.value, t.sub, t.color,
+                        (s, e) => Open(factory())),
+                    i % cols, i / cols);
+            }
 
             pnlContent.Controls.Add(tilePanel);
             void SyncTileWidth(object s, EventArgs e2) => tilePanel.Width = pnlContent.ClientSize.Width - pnlContent.Padding.Horizontal;
