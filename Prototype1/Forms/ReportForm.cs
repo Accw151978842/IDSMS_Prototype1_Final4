@@ -33,7 +33,7 @@ namespace Prototype1.Forms
         private ComboBox cmbReport;
         private DateTimePicker dtpFrom, dtpTo;
         private CheckBox chkDateRange;
-        private FlowLayoutPanel pnlKpis;
+        private TableLayoutPanel pnlKpis;
         private ChartPanel chart;
         private DataGridView grid;
         private Button btnRefresh, btnPrint, btnClose;
@@ -112,17 +112,17 @@ namespace Prototype1.Forms
             // ---- FILL (body) ----
             var body = new Panel { Dock = DockStyle.Fill, BackColor = UiTheme.Background, Padding = new Padding(16, 8, 16, 8) };
 
-            // KPI strip across the top of the body
-            pnlKpis = new FlowLayoutPanel
+            // KPI strip across the top of the body - TableLayoutPanel so cards
+            // stretch and stay evenly distributed when the window is resized/maximized.
+            pnlKpis = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
                 Height = 92,
-                AutoScroll = false,
-                WrapContents = false,
                 BackColor = UiTheme.Background,
-                Padding = new Padding(0, 0, 0, 8)
+                Padding = new Padding(0, 0, 0, 8),
+                ColumnCount = 1,
+                RowCount = 1
             };
-            body.Controls.Add(pnlKpis);
 
             // Chart card (middle)
             var chartCard = new Panel { Dock = DockStyle.Top, Height = 280, BackColor = UiTheme.Surface, Padding = new Padding(12), Margin = new Padding(0) };
@@ -415,7 +415,7 @@ namespace Prototype1.Forms
         // -------------------------------------------------------------
         private Panel Kpi(string label, string value, Color accent)
         {
-            var card = new Panel { Width = 200, Height = 76, BackColor = UiTheme.Surface, Margin = new Padding(0, 0, 12, 0) };
+            var card = new Panel { Dock = DockStyle.Fill, BackColor = UiTheme.Surface, Margin = new Padding(0, 0, 12, 0) };
             card.Controls.Add(new Panel { Dock = DockStyle.Left, Width = 5, BackColor = accent });
             card.Controls.Add(new Label
             {
@@ -432,8 +432,19 @@ namespace Prototype1.Forms
 
         private void SetKpis(params Panel[] cards)
         {
+            pnlKpis.SuspendLayout();
             pnlKpis.Controls.Clear();
-            pnlKpis.Controls.AddRange(cards);
+            pnlKpis.ColumnStyles.Clear();
+            pnlKpis.ColumnCount = cards.Length;
+            for (int i = 0; i < cards.Length; i++)
+            {
+                pnlKpis.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / cards.Length));
+                pnlKpis.Controls.Add(cards[i], i, 0);
+            }
+            // Last card has no right margin so the row fills edge-to-edge.
+            if (cards.Length > 0)
+                cards[cards.Length - 1].Margin = new Padding(0, 0, 0, 0);
+            pnlKpis.ResumeLayout();
         }
 
         private void FillGrid(string[] headers, List<string[]> rows)
