@@ -634,17 +634,17 @@ namespace Prototype1.Forms
             pnlContent.Resize += SyncTileWidth;
             SyncTileWidth(null, null);
 
-            // ---- Recent audit (Administrator only) ----
-            // Audit trail is a system-administration concern, so non-admin roles
-            // (Sales, Logistics, Warehouse, Service) should not see other users'
-            // activity on the dashboard.
+            // ---- Recent audit ----
+            // Administrator sees everyone's activity (system administration view).
+            // Other roles (Sales, Logistics, Warehouse, Service) only see their
+            // OWN activity trail, so we don't leak other users' actions.
             bool isAdmin = SecurityService.CurrentUser != null &&
                 string.Equals(SecurityService.CurrentUser.Role, "Administrator", StringComparison.OrdinalIgnoreCase);
-            if (!isAdmin) return;
+            string currentUsername = SecurityService.CurrentUser != null ? SecurityService.CurrentUser.Username : "";
 
             pnlContent.Controls.Add(new Label
             {
-                Text      = "RECENT AUDIT ACTIVITY",
+                Text      = isAdmin ? "RECENT AUDIT ACTIVITY" : "MY RECENT ACTIVITY",
                 Font      = new Font(UiTheme.FontFamily, 8F, FontStyle.Bold),
                 ForeColor = UiTheme.TextMuted,
                 AutoSize  = true,
@@ -670,11 +670,16 @@ namespace Prototype1.Forms
             recentGrid.Columns.Add("Detail", "Detail");
             recentGrid.Columns["Time"].Width = 150;
             recentGrid.Columns["User"].Width = 110;
+            // Non-admins only ever see their own rows, so the User column is redundant.
+            recentGrid.Columns["User"].Visible = isAdmin;
 
             int shown = 0;
             foreach (var log in DataStore.AuditLogs)
             {
                 if (shown >= 6) break;
+                // Non-admins only see their own activity.
+                if (!isAdmin && !string.Equals(log.Username, currentUsername, StringComparison.OrdinalIgnoreCase))
+                    continue;
                 recentGrid.Rows.Add(log.Timestamp.ToString("yyyy-MM-dd HH:mm", en), log.Username, log.Action, log.Detail);
                 shown++;
             }
