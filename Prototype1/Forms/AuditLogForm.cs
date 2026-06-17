@@ -57,13 +57,13 @@ namespace Prototype1.Forms
             chkUseDate.CheckedChanged += (s, e) => { dtpFrom.Enabled = dtpTo.Enabled = chkUseDate.Checked; LoadGrid(); };
             top.Controls.Add(chkUseDate);
 
-            dtpFrom = new DateTimePicker { Location = new Point(108, 91), Width = 130, Format = DateTimePickerFormat.Short, Enabled = false, Value = DateTime.Today.AddDays(-30) };
+            dtpFrom = new DateTimePicker { Location = new Point(108, 91), Width = 130, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy", Enabled = false, Value = DateTime.Today.AddDays(-30) };
             dtpFrom.ValueChanged += (s, e) => LoadGrid();
             top.Controls.Add(dtpFrom);
 
             top.Controls.Add(new Label { Text = "to", Location = new Point(246, 94), AutoSize = true, ForeColor = UiTheme.TextMuted });
 
-            dtpTo = new DateTimePicker { Location = new Point(266, 91), Width = 130, Format = DateTimePickerFormat.Short, Enabled = false, Value = DateTime.Today };
+            dtpTo = new DateTimePicker { Location = new Point(266, 91), Width = 130, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy", Enabled = false, Value = DateTime.Today };
             dtpTo.ValueChanged += (s, e) => LoadGrid();
             top.Controls.Add(dtpTo);
 

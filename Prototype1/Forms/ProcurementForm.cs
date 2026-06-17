@@ -71,11 +71,11 @@ namespace Prototype1.Forms
             chkDateFilter.CheckedChanged += (s, e) => { dtpFrom.Enabled = dtpTo.Enabled = chkDateFilter.Checked; LoadGrid(); };
             top.Controls.Add(chkDateFilter);
 
-            dtpFrom = new DateTimePicker { Location = new Point(625, 38), Width = 110, Format = DateTimePickerFormat.Short, Enabled = false, Value = DateTime.Today.AddMonths(-1) };
+            dtpFrom = new DateTimePicker { Location = new Point(625, 38), Width = 110, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy", Enabled = false, Value = DateTime.Today.AddMonths(-1) };
             dtpFrom.ValueChanged += (s, e) => { if (chkDateFilter.Checked) LoadGrid(); };
             top.Controls.Add(dtpFrom);
             top.Controls.Add(new Label { Text = "to", Location = new Point(740, 42), AutoSize = true, ForeColor = UiTheme.TextMuted });
-            dtpTo = new DateTimePicker { Location = new Point(760, 38), Width = 110, Format = DateTimePickerFormat.Short, Enabled = false, Value = DateTime.Today };
+            dtpTo = new DateTimePicker { Location = new Point(760, 38), Width = 110, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy", Enabled = false, Value = DateTime.Today };
             dtpTo.ValueChanged += (s, e) => { if (chkDateFilter.Checked) LoadGrid(); };
             top.Controls.Add(dtpTo);
 
@@ -281,11 +281,11 @@ namespace Prototype1.Forms
             Controls.Add(txtPoId);
 
             Controls.Add(new Label { Text = "Order Date:", Location = new Point(280, y + 3), AutoSize = true });
-            dtpOrder = new DateTimePicker { Location = new Point(370, y), Width = 140, Format = DateTimePickerFormat.Short };
+            dtpOrder = new DateTimePicker { Location = new Point(370, y), Width = 140, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy" };
             Controls.Add(dtpOrder);
 
             Controls.Add(new Label { Text = "Expected:", Location = new Point(540, y + 3), AutoSize = true });
-            dtpExpected = new DateTimePicker { Location = new Point(620, y), Width = 140, Format = DateTimePickerFormat.Short };
+            dtpExpected = new DateTimePicker { Location = new Point(620, y), Width = 140, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy" };
             Controls.Add(dtpExpected);
 
             y += 40;

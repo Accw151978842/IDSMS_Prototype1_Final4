@@ -91,11 +91,11 @@ namespace Prototype1.Forms
             Controls.Add(txtOrderId);
 
             Controls.Add(new Label { Text = "Order Date:", Location = new Point(280, y + 3), AutoSize = true });
-            dtpOrder = new DateTimePicker { Location = new Point(370, y), Width = 140, Format = DateTimePickerFormat.Short };
+            dtpOrder = new DateTimePicker { Location = new Point(370, y), Width = 140, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy" };
             Controls.Add(dtpOrder);
 
             Controls.Add(new Label { Text = "Required:", Location = new Point(540, y + 3), AutoSize = true });
-            dtpRequired = new DateTimePicker { Location = new Point(620, y), Width = 140, Format = DateTimePickerFormat.Short };
+            dtpRequired = new DateTimePicker { Location = new Point(620, y), Width = 140, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy" };
             Controls.Add(dtpRequired);
 
             y += 40;

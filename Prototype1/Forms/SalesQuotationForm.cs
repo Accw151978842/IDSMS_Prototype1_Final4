@@ -386,11 +386,11 @@ namespace Prototype1.Forms
             Controls.Add(txtId);
 
             Controls.Add(new Label { Text = "Quote Date:", Location = new Point(300, y + 3), AutoSize = true });
-            dtpQuote = new DateTimePicker { Location = new Point(390, y), Width = 130, Format = DateTimePickerFormat.Short };
+            dtpQuote = new DateTimePicker { Location = new Point(390, y), Width = 130, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy" };
             Controls.Add(dtpQuote);
 
             Controls.Add(new Label { Text = "Valid Until:", Location = new Point(540, y + 3), AutoSize = true });
-            dtpValid = new DateTimePicker { Location = new Point(630, y), Width = 130, Format = DateTimePickerFormat.Short };
+            dtpValid = new DateTimePicker { Location = new Point(630, y), Width = 130, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy" };
             Controls.Add(dtpValid);
 
             y += 40;

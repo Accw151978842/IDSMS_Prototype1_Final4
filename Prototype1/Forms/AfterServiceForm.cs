@@ -165,7 +165,7 @@ namespace Prototype1.Forms
 
             y += 35;
             Controls.Add(new Label { Text = "Request Date:", Location = new Point(20, y + 3), AutoSize = true });
-            dtpDate = new DateTimePicker { Location = new Point(140, y), Width = 200, Format = DateTimePickerFormat.Short };
+            dtpDate = new DateTimePicker { Location = new Point(140, y), Width = 200, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy" };
             Controls.Add(dtpDate);
 
             y += 35;

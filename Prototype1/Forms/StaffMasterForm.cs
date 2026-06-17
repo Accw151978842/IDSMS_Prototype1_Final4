@@ -202,7 +202,7 @@ namespace Prototype1.Forms
             Controls.Add(txtEmail);
             y += 35;
             Controls.Add(new Label { Text = "Hire Date:", Location = new Point(20, y + 3), AutoSize = true });
-            dtpHire = new DateTimePicker { Location = new Point(140, y), Width = 200, Format = DateTimePickerFormat.Short };
+            dtpHire = new DateTimePicker { Location = new Point(140, y), Width = 200, Format = DateTimePickerFormat.Custom, CustomFormat = "dd/MM/yyyy" };
             Controls.Add(dtpHire);
 
             var btnSave = new Button { Text = "Save", Location = new Point(20, y + 55), Width = 100, Height = 34 };
