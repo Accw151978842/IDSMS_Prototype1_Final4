@@ -323,6 +323,7 @@ namespace Prototype1.Forms
 
             grpLine.Controls.Add(new Label { Text = "Item:", Location = new Point(10, 28), AutoSize = true });
             cmbItem = new ComboBox { Location = new Point(60, 25), Width = 290, DropDownStyle = ComboBoxStyle.DropDownList };
+            cmbItem.DropDownWidth = 480;   // wider dropdown so long item text is not clipped
             foreach (var it in DataStore.Items)
                 cmbItem.Items.Add(new ListItem(it.ItemId, it.ItemId + " - " + it.ItemName + " (Stock: " + it.StockQty + ")"));
             cmbItem.DisplayMember = "Display";
