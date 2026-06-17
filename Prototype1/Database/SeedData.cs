@@ -19,9 +19,9 @@ namespace Prototype1.Database
 
             DataStore.StaffList.AddRange(new[]
             {
-                new Staff { StaffId = "S00001", FullName = "Chan Tai Man", Position = "Sales Manager", Department = "Sales", Phone = "98765432", Email = "tmchan@plf.com.hk", HireDate = new DateTime(2020, 3, 1) },
-                new Staff { StaffId = "S00002", FullName = "Wong Siu Ling", Position = "Sales Officer", Department = "Sales", Phone = "97654321", Email = "slwong@plf.com.hk", HireDate = new DateTime(2021, 6, 15) },
-                new Staff { StaffId = "S00003", FullName = "Lee Ka Ho", Position = "Warehouse Supervisor", Department = "Warehouse", Phone = "96543210", Email = "khlee@plf.com.hk", HireDate = new DateTime(2019, 9, 1) },
+                new Staff { StaffId = "S00001", FullName = "Chan Tai Man", Position = "Sales Manager", Department = "Sales and Marketing", Phone = "98765432", Email = "tmchan@plf.com.hk", HireDate = new DateTime(2020, 3, 1) },
+                new Staff { StaffId = "S00002", FullName = "Wong Siu Ling", Position = "Sales Officer", Department = "Sales and Marketing", Phone = "97654321", Email = "slwong@plf.com.hk", HireDate = new DateTime(2021, 6, 15) },
+                new Staff { StaffId = "S00003", FullName = "Lee Ka Ho", Position = "Warehouse Supervisor", Department = "Inventory Control", Phone = "96543210", Email = "khlee@plf.com.hk", HireDate = new DateTime(2019, 9, 1) },
                 new Staff { StaffId = "S00004", FullName = "Cheung Mei Yee", Position = "Logistics Officer", Department = "Logistics", Phone = "95432109", Email = "mycheung@plf.com.hk", HireDate = new DateTime(2022, 1, 10) }
             });
 
@@ -114,7 +114,7 @@ namespace Prototype1.Database
                 RmrId = "RMR00001",
                 RequestDate = DateTime.Today.AddDays(-5),
                 RequestedBy = "S00003",
-                Department  = "Warehouse",
+                Department  = "Inventory Control",
                 Status      = "Approved",
                 Notes       = "Restock fast-moving office furniture"
             };

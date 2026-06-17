@@ -140,10 +140,11 @@ namespace Prototype1.Forms
         private ComboBox cmbDept;
         private DateTimePicker dtpHire;
 
-        // Default suggestions - users can still type a new department
+        // Default suggestions - aligned with Case Study (Section 7) official departments
+        // plus Administration. Users can still type a new department.
         private static readonly string[] DefaultDepartments =
-            { "Sales", "Logistics", "Warehouse", "Service", "Administration",
-              "Design", "Production", "Finance", "IT" };
+            { "Sales and Marketing", "Furniture Design", "Production",
+              "Inventory Control", "Logistics", "Finance", "IT", "Administration" };
 
         public StaffEditForm(Staff s)
         {
