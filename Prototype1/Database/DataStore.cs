@@ -23,6 +23,7 @@ namespace Prototype1.Database
         public static List<AfterServiceRequest> ServiceRequests = new List<AfterServiceRequest>();
         public static List<RawMaterialRequest>  RawMaterialRequests = new List<RawMaterialRequest>();
         public static List<Procurement>         Procurements    = new List<Procurement>();
+        public static List<Quotation>           Quotations      = new List<Quotation>();
         public static List<AuditLog>            AuditLogs       = new List<AuditLog>();
 
         // ============================================================
@@ -41,6 +42,7 @@ namespace Prototype1.Database
             ServiceRequests = LoadServiceRequests();
             RawMaterialRequests = LoadRawMaterialRequests();
             Procurements    = LoadProcurements();
+            Quotations      = LoadQuotations();
             AuditLogs       = LoadAuditLogs();
 
             if (Users.Count == 0)
@@ -75,6 +77,9 @@ namespace Prototype1.Database
                     Exec(conn, tx, "DELETE FROM delivery_notes");
                     Exec(conn, tx, "DELETE FROM sales_order_lines");
                     Exec(conn, tx, "DELETE FROM sales_orders");
+                    // quotation (child) before procurement + rmr (parents)
+                    Exec(conn, tx, "DELETE FROM quotation_lines");
+                    Exec(conn, tx, "DELETE FROM quotations");
                     // procurement (children) before rmr (parent) - PO may reference RMR
                     Exec(conn, tx, "DELETE FROM procurement_lines");
                     Exec(conn, tx, "DELETE FROM procurements");
@@ -100,6 +105,7 @@ namespace Prototype1.Database
                     InsertServiceRequests(conn, tx);
                     InsertRawMaterialRequests(conn, tx);
                     InsertProcurements(conn, tx);
+                    InsertQuotations(conn, tx);
                     InsertAuditLogs(conn, tx);
 
                     tx.Commit();
@@ -819,6 +825,100 @@ namespace Prototype1.Database
                         "INSERT INTO procurement_lines(po_id,item_id,item_name,quantity,unit_price) VALUES(@pid,@iid,@inm,@qty,@up)", conn, tx))
                     {
                         cmd2.Parameters.AddWithValue("@pid", po.PoId);
+                        cmd2.Parameters.AddWithValue("@iid", ln.ItemId);
+                        cmd2.Parameters.AddWithValue("@inm", ln.ItemName ?? "");
+                        cmd2.Parameters.AddWithValue("@qty", ln.Quantity);
+                        cmd2.Parameters.AddWithValue("@up",  ln.UnitPrice);
+                        cmd2.ExecuteNonQuery();
+                    }
+                }
+            }
+        }
+
+        // ============================================================
+        //  QUOTATIONS
+        // ============================================================
+        private static List<Quotation> LoadQuotations()
+        {
+            var list = new List<Quotation>();
+            using (var conn = DbConnection.GetConnection())
+            {
+                try
+                {
+                    using (var cmd = new MySqlCommand("SELECT * FROM quotations ORDER BY quotation_id", conn))
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                            list.Add(new Quotation
+                            {
+                                QuotationId   = r.GetString("quotation_id"),
+                                QuotationNo   = r.IsDBNull(r.GetOrdinal("quotation_no"))   ? "" : r.GetString("quotation_no"),
+                                RmrId         = r.IsDBNull(r.GetOrdinal("rmr_id"))         ? "" : r.GetString("rmr_id"),
+                                SupplierId    = r.IsDBNull(r.GetOrdinal("supplier_id"))    ? "" : r.GetString("supplier_id"),
+                                QuoteDate     = r.GetDateTime("quote_date"),
+                                ValidUntil    = r.IsDBNull(r.GetOrdinal("valid_until"))    ? r.GetDateTime("quote_date") : r.GetDateTime("valid_until"),
+                                LeadTimeDays  = r.IsDBNull(r.GetOrdinal("lead_time_days")) ? 0  : r.GetInt32("lead_time_days"),
+                                PaymentTerms  = r.IsDBNull(r.GetOrdinal("payment_terms"))  ? "" : r.GetString("payment_terms"),
+                                Status        = r.IsDBNull(r.GetOrdinal("status"))         ? "" : r.GetString("status"),
+                                ConvertedPoId = r.IsDBNull(r.GetOrdinal("converted_po_id"))? "" : r.GetString("converted_po_id"),
+                                CreatedBy     = r.IsDBNull(r.GetOrdinal("created_by"))     ? "" : r.GetString("created_by"),
+                                Remarks       = r.IsDBNull(r.GetOrdinal("remarks"))        ? "" : r.GetString("remarks")
+                            });
+                    }
+                }
+                catch (MySqlException) { return list; }
+
+                foreach (var q in list)
+                {
+                    using (var cmd2 = new MySqlCommand("SELECT * FROM quotation_lines WHERE quotation_id=@id", conn))
+                    {
+                        cmd2.Parameters.AddWithValue("@id", q.QuotationId);
+                        using (var r2 = cmd2.ExecuteReader())
+                        {
+                            while (r2.Read())
+                                q.Lines.Add(new QuotationLine
+                                {
+                                    ItemId    = r2.GetString("item_id"),
+                                    ItemName  = r2.IsDBNull(r2.GetOrdinal("item_name")) ? "" : r2.GetString("item_name"),
+                                    Quantity  = r2.GetInt32("quantity"),
+                                    UnitPrice = r2.GetDecimal("unit_price")
+                                });
+                        }
+                    }
+                }
+            }
+            return list;
+        }
+
+        private static void InsertQuotations(MySqlConnection conn, MySqlTransaction tx)
+        {
+            foreach (var q in Quotations)
+            {
+                using (var cmd = new MySqlCommand(
+                    "INSERT INTO quotations(quotation_id,quotation_no,rmr_id,supplier_id,quote_date,valid_until," +
+                    "lead_time_days,payment_terms,status,converted_po_id,created_by,remarks) " +
+                    "VALUES(@id,@qn,@rmr,@sup,@qd,@vu,@lt,@pt,@st,@cpo,@cb,@rem)", conn, tx))
+                {
+                    cmd.Parameters.AddWithValue("@id",  q.QuotationId);
+                    cmd.Parameters.AddWithValue("@qn",  q.QuotationNo ?? "");
+                    cmd.Parameters.AddWithValue("@rmr", string.IsNullOrEmpty(q.RmrId) ? (object)DBNull.Value : q.RmrId);
+                    cmd.Parameters.AddWithValue("@sup", string.IsNullOrEmpty(q.SupplierId) ? (object)DBNull.Value : q.SupplierId);
+                    cmd.Parameters.AddWithValue("@qd",  q.QuoteDate.Date);
+                    cmd.Parameters.AddWithValue("@vu",  q.ValidUntil.Date);
+                    cmd.Parameters.AddWithValue("@lt",  q.LeadTimeDays);
+                    cmd.Parameters.AddWithValue("@pt",  q.PaymentTerms ?? "");
+                    cmd.Parameters.AddWithValue("@st",  q.Status ?? "Pending");
+                    cmd.Parameters.AddWithValue("@cpo", string.IsNullOrEmpty(q.ConvertedPoId) ? (object)DBNull.Value : q.ConvertedPoId);
+                    cmd.Parameters.AddWithValue("@cb",  q.CreatedBy ?? "");
+                    cmd.Parameters.AddWithValue("@rem", q.Remarks ?? "");
+                    cmd.ExecuteNonQuery();
+                }
+                foreach (var ln in q.Lines)
+                {
+                    using (var cmd2 = new MySqlCommand(
+                        "INSERT INTO quotation_lines(quotation_id,item_id,item_name,quantity,unit_price) VALUES(@qid,@iid,@inm,@qty,@up)", conn, tx))
+                    {
+                        cmd2.Parameters.AddWithValue("@qid", q.QuotationId);
                         cmd2.Parameters.AddWithValue("@iid", ln.ItemId);
                         cmd2.Parameters.AddWithValue("@inm", ln.ItemName ?? "");
                         cmd2.Parameters.AddWithValue("@qty", ln.Quantity);

@@ -244,4 +244,52 @@ namespace Prototype1.Models
         [DataMember] public string Action { get; set; }
         [DataMember] public string Detail { get; set; }
     }
+
+    // ============================================================
+    //  QUOTATION  —  Supplier price quote (RFQ response)
+    //  Flow:  RMR  ->  Quotation(s)  ->  Select  ->  Convert to PO
+    // ============================================================
+    [DataContract]
+    public class Quotation
+    {
+        [DataMember] public string QuotationId { get; set; }     // QT00001
+        [DataMember] public string QuotationNo { get; set; }     // Supplier-side reference (free text)
+        [DataMember] public string RmrId { get; set; }           // Linked RMR (nullable for unsolicited quotes)
+        [DataMember] public string SupplierId { get; set; }
+        [DataMember] public DateTime QuoteDate { get; set; }
+        [DataMember] public DateTime ValidUntil { get; set; }
+        [DataMember] public int LeadTimeDays { get; set; }       // Promised delivery lead time
+        [DataMember] public string PaymentTerms { get; set; }    // e.g. "Net 30"
+        [DataMember] public string Status { get; set; }          // Pending / Selected / Rejected / Expired / Converted
+        [DataMember] public string ConvertedPoId { get; set; }   // PO id after conversion
+        [DataMember] public string CreatedBy { get; set; }
+        [DataMember] public string Remarks { get; set; }
+        [DataMember] public List<QuotationLine> Lines { get; set; }
+
+        public Quotation()
+        {
+            Lines = new List<QuotationLine>();
+        }
+
+        public decimal TotalAmount
+        {
+            get
+            {
+                decimal sum = 0m;
+                if (Lines != null) foreach (var l in Lines) sum += l.Subtotal;
+                return sum;
+            }
+        }
+    }
+
+    [DataContract]
+    public class QuotationLine
+    {
+        [DataMember] public string ItemId { get; set; }
+        [DataMember] public string ItemName { get; set; }
+        [DataMember] public int Quantity { get; set; }
+        [DataMember] public decimal UnitPrice { get; set; }
+
+        public decimal Subtotal { get { return Quantity * UnitPrice; } }
+    }
 }

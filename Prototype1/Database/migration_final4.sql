@@ -99,5 +99,66 @@ INSERT IGNORE INTO procurement_lines(po_id, item_id, item_name, quantity, unit_p
 ('PO00002', 'I00003', '3-Seater Leather Sofa',        4, 8800.00);
 
 -- ============================================================
+--  QUOTATIONS (P2 enhancement)
+--  Flow: RMR -> RFQ -> 多個 supplier 報價 -> 揀中 -> Convert to PO
+-- ============================================================
+CREATE TABLE IF NOT EXISTS quotations (
+    quotation_id     VARCHAR(20)  NOT NULL,
+    quotation_no     VARCHAR(50),                  -- supplier-side reference
+    rmr_id           VARCHAR(20),                  -- linked RMR (nullable)
+    supplier_id      VARCHAR(20),
+    quote_date       DATE         NOT NULL,
+    valid_until      DATE,
+    lead_time_days   INT,
+    payment_terms    VARCHAR(100),
+    status           VARCHAR(20)  NOT NULL DEFAULT 'Pending',  -- Pending/Selected/Rejected/Expired/Converted
+    converted_po_id  VARCHAR(20),                  -- PO id after conversion
+    created_by       VARCHAR(50),
+    remarks          VARCHAR(500),
+    PRIMARY KEY (quotation_id),
+    INDEX idx_quot_rmr (rmr_id),
+    INDEX idx_quot_sup (supplier_id),
+    INDEX idx_quot_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS quotation_lines (
+    line_id          INT          AUTO_INCREMENT,
+    quotation_id     VARCHAR(20)  NOT NULL,
+    item_id          VARCHAR(20)  NOT NULL,
+    item_name        VARCHAR(255),
+    quantity         INT          NOT NULL DEFAULT 0,
+    unit_price       DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    PRIMARY KEY (line_id),
+    INDEX idx_qline_qid (quotation_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Sample data: 3 suppliers competing on RMR00001 (Executive Desk + Ergonomic Chair)
+INSERT IGNORE INTO quotations(quotation_id, quotation_no, rmr_id, supplier_id, quote_date, valid_until,
+    lead_time_days, payment_terms, status, converted_po_id, created_by, remarks) VALUES
+('QT00001', 'SF-Q-2026-018', 'RMR00001', 'SP00001', CURDATE() - INTERVAL 8 DAY,  CURDATE() + INTERVAL 22 DAY, 14, 'Net 30',   'Selected',  'PO00001', 'admin', 'Best total + reasonable lead time'),
+('QT00002', 'GHF-2026-1124', 'RMR00001', 'SP00002', CURDATE() - INTERVAL 8 DAY,  CURDATE() + INTERVAL 22 DAY, 10, 'Net 30',   'Rejected',  NULL,      'admin', 'Faster but 8% more expensive'),
+('QT00003', 'IL-Q-2026-007', 'RMR00001', 'SP00003', CURDATE() - INTERVAL 7 DAY,  CURDATE() + INTERVAL 23 DAY, 21, 'Net 60',   'Rejected',  NULL,      'admin', 'Cheapest but 21-day lead time'),
+-- 2 suppliers competing on RMR00002 (Sofa + Bookshelf)
+('QT00004', 'IL-Q-2026-009', 'RMR00002', 'SP00003', CURDATE() - INTERVAL 5 DAY,  CURDATE() + INTERVAL 25 DAY, 18, 'Net 30',   'Pending',   NULL,      'admin', 'Awaiting comparison'),
+('QT00005', 'GHF-2026-1140', 'RMR00002', 'SP00002', CURDATE() - INTERVAL 4 DAY,  CURDATE() + INTERVAL 26 DAY, 12, 'Net 30',   'Pending',   NULL,      'admin', 'Awaiting comparison');
+
+INSERT IGNORE INTO quotation_lines(quotation_id, item_id, item_name, quantity, unit_price) VALUES
+-- QT00001 (Selected - became PO00001)
+('QT00001', 'I00001', 'Executive Office Desk (Oak)', 10, 4200.00),
+('QT00001', 'I00002', 'Ergonomic Mesh Chair',        20, 1850.00),
+-- QT00002 (Rejected - higher price, faster lead)
+('QT00002', 'I00001', 'Executive Office Desk (Oak)', 10, 4500.00),
+('QT00002', 'I00002', 'Ergonomic Mesh Chair',        20, 2050.00),
+-- QT00003 (Rejected - cheapest but 21-day lead)
+('QT00003', 'I00001', 'Executive Office Desk (Oak)', 10, 3950.00),
+('QT00003', 'I00002', 'Ergonomic Mesh Chair',        20, 1720.00),
+-- QT00004 (Pending on RMR00002)
+('QT00004', 'I00003', '3-Seater Leather Sofa',        6, 8400.00),
+('QT00004', 'I00006', 'Bookshelf - 5 Tier',          12, 2200.00),
+-- QT00005 (Pending on RMR00002)
+('QT00005', 'I00003', '3-Seater Leather Sofa',        6, 8800.00),
+('QT00005', 'I00006', 'Bookshelf - 5 Tier',          12, 2050.00);
+
+-- ============================================================
 --  完成 — 請重啟 IDSMS app 讓 DataStore.LoadAll() 載入新資料
 -- ============================================================
