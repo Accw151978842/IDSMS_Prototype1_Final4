@@ -242,7 +242,41 @@ CREATE TABLE IF NOT EXISTS quotation_lines (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
---  完成 — 全部 17 個 tables 已建立
+--  SALES QUOTATIONS (P2 enhancement — sales side)
+--  Flow: Customer enquiry -> Sales Quotation -> Accepted
+--        -> Convert to Sales Order
+--  ★ 必須建立：DataStore.SaveAll() 會 DELETE/INSERT 呢兩個表，
+--    如果缺少，一儲存就會掉 exception。
+--  (不設硬 FK 至 customers，因為 SaveAll() 會喺同一 transaction
+--   先 DELETE customers，硬 FK 會引致刪除/插入次序問題。)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS sales_quotations (
+    quotation_id       VARCHAR(20)  NOT NULL,
+    customer_id        VARCHAR(20),
+    quote_date         DATE         NOT NULL,
+    valid_until        DATE,
+    status             VARCHAR(20)  NOT NULL DEFAULT 'Draft',  -- Draft/Sent/Accepted/Rejected/Expired/Converted
+    converted_order_id VARCHAR(20),                            -- Sales Order id after conversion
+    created_by         VARCHAR(50),
+    remarks            VARCHAR(500),
+    PRIMARY KEY (quotation_id),
+    INDEX idx_sq_customer (customer_id),
+    INDEX idx_sq_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS sales_quotation_lines (
+    line_id          INT          AUTO_INCREMENT,
+    quotation_id     VARCHAR(20)  NOT NULL,
+    item_id          VARCHAR(20)  NOT NULL,
+    item_name        VARCHAR(255),
+    quantity         INT          NOT NULL DEFAULT 0,
+    unit_price       DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    PRIMARY KEY (line_id),
+    INDEX idx_sqline_qid (quotation_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+--  完成 — 全部 19 個 tables 已建立
 --  下一步：
 --    1) 啟動 IDSMS app  → DataStore 會自動 seed Users/Staff/
 --       Customers/Suppliers/Items/SalesOrders/RMR/PO base data

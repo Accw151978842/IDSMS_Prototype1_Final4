@@ -24,6 +24,7 @@ namespace Prototype1.Database
         public static List<RawMaterialRequest>  RawMaterialRequests = new List<RawMaterialRequest>();
         public static List<Procurement>         Procurements    = new List<Procurement>();
         public static List<Quotation>           Quotations      = new List<Quotation>();
+        public static List<SalesQuotation>      SalesQuotations = new List<SalesQuotation>();
         public static List<AuditLog>            AuditLogs       = new List<AuditLog>();
 
         // ============================================================
@@ -43,6 +44,7 @@ namespace Prototype1.Database
             RawMaterialRequests = LoadRawMaterialRequests();
             Procurements    = LoadProcurements();
             Quotations      = LoadQuotations();
+            SalesQuotations = LoadSalesQuotations();
             AuditLogs       = LoadAuditLogs();
 
             if (Users.Count == 0)
@@ -80,6 +82,8 @@ namespace Prototype1.Database
                     // quotation (child) before procurement + rmr (parents)
                     Exec(conn, tx, "DELETE FROM quotation_lines");
                     Exec(conn, tx, "DELETE FROM quotations");
+                    Exec(conn, tx, "DELETE FROM sales_quotation_lines");
+                    Exec(conn, tx, "DELETE FROM sales_quotations");
                     // procurement (children) before rmr (parent) - PO may reference RMR
                     Exec(conn, tx, "DELETE FROM procurement_lines");
                     Exec(conn, tx, "DELETE FROM procurements");
@@ -106,6 +110,7 @@ namespace Prototype1.Database
                     InsertRawMaterialRequests(conn, tx);
                     InsertProcurements(conn, tx);
                     InsertQuotations(conn, tx);
+                    InsertSalesQuotations(conn, tx);
                     InsertAuditLogs(conn, tx);
 
                     tx.Commit();
@@ -935,6 +940,92 @@ namespace Prototype1.Database
                 {
                     using (var cmd2 = new MySqlCommand(
                         "INSERT INTO quotation_lines(quotation_id,item_id,item_name,quantity,unit_price) VALUES(@qid,@iid,@inm,@qty,@up)", conn, tx))
+                    {
+                        cmd2.Parameters.AddWithValue("@qid", q.QuotationId);
+                        cmd2.Parameters.AddWithValue("@iid", ln.ItemId);
+                        cmd2.Parameters.AddWithValue("@inm", ln.ItemName ?? "");
+                        cmd2.Parameters.AddWithValue("@qty", ln.Quantity);
+                        cmd2.Parameters.AddWithValue("@up",  ln.UnitPrice);
+                        cmd2.ExecuteNonQuery();
+                    }
+                }
+            }
+        }
+
+        // ============================================================
+        //  SALES QUOTATIONS (sales side — quote issued to customer)
+        // ============================================================
+        private static List<SalesQuotation> LoadSalesQuotations()
+        {
+            var list = new List<SalesQuotation>();
+            using (var conn = DbConnection.GetConnection())
+            {
+                try
+                {
+                    using (var cmd = new MySqlCommand("SELECT * FROM sales_quotations ORDER BY quotation_id", conn))
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                            list.Add(new SalesQuotation
+                            {
+                                QuotationId      = r.GetString("quotation_id"),
+                                CustomerId       = r.IsDBNull(r.GetOrdinal("customer_id"))        ? "" : r.GetString("customer_id"),
+                                QuoteDate        = r.GetDateTime("quote_date"),
+                                ValidUntil       = r.IsDBNull(r.GetOrdinal("valid_until"))        ? r.GetDateTime("quote_date") : r.GetDateTime("valid_until"),
+                                Status           = r.IsDBNull(r.GetOrdinal("status"))             ? "" : r.GetString("status"),
+                                ConvertedOrderId = r.IsDBNull(r.GetOrdinal("converted_order_id")) ? "" : r.GetString("converted_order_id"),
+                                CreatedBy        = r.IsDBNull(r.GetOrdinal("created_by"))         ? "" : r.GetString("created_by"),
+                                Remarks          = r.IsDBNull(r.GetOrdinal("remarks"))            ? "" : r.GetString("remarks")
+                            });
+                    }
+                }
+                catch (MySqlException) { return list; }
+
+                foreach (var q in list)
+                {
+                    using (var cmd2 = new MySqlCommand("SELECT * FROM sales_quotation_lines WHERE quotation_id=@id", conn))
+                    {
+                        cmd2.Parameters.AddWithValue("@id", q.QuotationId);
+                        using (var r2 = cmd2.ExecuteReader())
+                        {
+                            while (r2.Read())
+                                q.Lines.Add(new SalesQuotationLine
+                                {
+                                    ItemId    = r2.GetString("item_id"),
+                                    ItemName  = r2.IsDBNull(r2.GetOrdinal("item_name")) ? "" : r2.GetString("item_name"),
+                                    Quantity  = r2.GetInt32("quantity"),
+                                    UnitPrice = r2.GetDecimal("unit_price")
+                                });
+                        }
+                    }
+                }
+            }
+            return list;
+        }
+
+        private static void InsertSalesQuotations(MySqlConnection conn, MySqlTransaction tx)
+        {
+            foreach (var q in SalesQuotations)
+            {
+                using (var cmd = new MySqlCommand(
+                    "INSERT INTO sales_quotations(quotation_id,customer_id,quote_date,valid_until," +
+                    "status,converted_order_id,created_by,remarks) " +
+                    "VALUES(@id,@cid,@qd,@vu,@st,@cor,@cb,@rem)", conn, tx))
+                {
+                    cmd.Parameters.AddWithValue("@id",  q.QuotationId);
+                    cmd.Parameters.AddWithValue("@cid", string.IsNullOrEmpty(q.CustomerId) ? (object)DBNull.Value : q.CustomerId);
+                    cmd.Parameters.AddWithValue("@qd",  q.QuoteDate.Date);
+                    cmd.Parameters.AddWithValue("@vu",  q.ValidUntil.Date);
+                    cmd.Parameters.AddWithValue("@st",  q.Status ?? "Draft");
+                    cmd.Parameters.AddWithValue("@cor", string.IsNullOrEmpty(q.ConvertedOrderId) ? (object)DBNull.Value : q.ConvertedOrderId);
+                    cmd.Parameters.AddWithValue("@cb",  q.CreatedBy ?? "");
+                    cmd.Parameters.AddWithValue("@rem", q.Remarks ?? "");
+                    cmd.ExecuteNonQuery();
+                }
+                foreach (var ln in q.Lines)
+                {
+                    using (var cmd2 = new MySqlCommand(
+                        "INSERT INTO sales_quotation_lines(quotation_id,item_id,item_name,quantity,unit_price) VALUES(@qid,@iid,@inm,@qty,@up)", conn, tx))
                     {
                         cmd2.Parameters.AddWithValue("@qid", q.QuotationId);
                         cmd2.Parameters.AddWithValue("@iid", ln.ItemId);

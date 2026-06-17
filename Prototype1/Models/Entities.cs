@@ -297,4 +297,50 @@ namespace Prototype1.Models
 
         public decimal Subtotal { get { return Quantity * UnitPrice; } }
     }
+
+    // ============================================================
+    //  SALES QUOTATION  —  Price quote issued TO a customer
+    //  (sales side; the opposite direction of the supplier Quotation above)
+    //  Flow:  Customer enquiry -> Sales Quotation -> Accepted
+    //         -> Convert to Sales Order
+    // ============================================================
+    [DataContract]
+    public class SalesQuotation
+    {
+        [DataMember] public string QuotationId { get; set; }      // SQ00001
+        [DataMember] public string CustomerId { get; set; }
+        [DataMember] public DateTime QuoteDate { get; set; }
+        [DataMember] public DateTime ValidUntil { get; set; }
+        [DataMember] public string Status { get; set; }           // Draft / Sent / Accepted / Rejected / Expired / Converted
+        [DataMember] public string ConvertedOrderId { get; set; } // Sales Order id after conversion
+        [DataMember] public string CreatedBy { get; set; }
+        [DataMember] public string Remarks { get; set; }
+        [DataMember] public List<SalesQuotationLine> Lines { get; set; }
+
+        public SalesQuotation()
+        {
+            Lines = new List<SalesQuotationLine>();
+        }
+
+        public decimal TotalAmount
+        {
+            get
+            {
+                decimal sum = 0m;
+                if (Lines != null) foreach (var l in Lines) sum += l.Subtotal;
+                return sum;
+            }
+        }
+    }
+
+    [DataContract]
+    public class SalesQuotationLine
+    {
+        [DataMember] public string ItemId { get; set; }
+        [DataMember] public string ItemName { get; set; }
+        [DataMember] public int Quantity { get; set; }
+        [DataMember] public decimal UnitPrice { get; set; }
+
+        public decimal Subtotal { get { return Quantity * UnitPrice; } }
+    }
 }

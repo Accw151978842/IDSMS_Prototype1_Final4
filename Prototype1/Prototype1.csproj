@@ -151,6 +151,12 @@
     <Compile Include="Forms\RawMaterialRequestForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\ReportForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\SalesQuotationForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Forms\ProcurementForm.cs">
       <SubType>Form</SubType>
     </Compile>

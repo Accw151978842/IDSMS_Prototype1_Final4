@@ -234,6 +234,7 @@ namespace Prototype1.Forms
             // Admin auto-passes via SecurityService.HasRole() bypass.
 
             AddGroupWithButtons("ORDER PROCESSING", new[] {
+                Nav("  Sales Quotations",      () => new SalesQuotationForm(),    "Sales"),
                 Nav("  Sales Orders",          () => new SalesOrderListForm(),    "Sales", "Logistics", "Warehouse"),
             });
 
@@ -267,6 +268,10 @@ namespace Prototype1.Forms
             AddGroupWithButtons("ADMINISTRATION", new[] {
                 Nav("  User Accounts",         () => new UserMasterForm(),        "Administrator"),
                 Nav("  Audit Log",             () => new AuditLogForm(),          "Administrator"),
+            });
+
+            AddGroupWithButtons("REPORTS", new[] {
+                Nav("  Statistical Reports",   () => new ReportForm(),            "Administrator", "Sales", "Logistics", "Warehouse"),
             });
 
             // Record content height for our custom scroll logic

@@ -4,13 +4,13 @@
 --  可在 phpMyAdmin > Import 直接執行（用 INSERT IGNORE，跑多次都安全）
 -- ============================================================
 --  使用方法（phpMyAdmin）：
---    1) 左邊揀資料庫 `idsms`
+--    1) 左邊揀資料庫 `idsms2`
 --    2) 頂部 Tab 揀「Import / 匯入」
 --    3) Choose File 揀本檔案 → Go
 --    4) 完成後重啟 IDSMS app，DataStore.LoadAll() 會載入新 rows
 -- ============================================================
 
-USE idsms;
+USE idsms2;
 
 -- ------------------------------------------------------------
 --  1) Raw Material Requests (Production)
@@ -158,6 +158,48 @@ INSERT IGNORE INTO quotation_lines(quotation_id, item_id, item_name, quantity, u
 -- QT00005 (Pending on RMR00002)
 ('QT00005', 'I00003', '3-Seater Leather Sofa',        6, 8800.00),
 ('QT00005', 'I00006', 'Bookshelf - 5 Tier',          12, 2050.00);
+
+-- ============================================================
+--  SALES QUOTATIONS (P2 enhancement — customer-side 報價單)
+--  比客戶嘅報價單。Flow: Draft -> Sent -> Accepted -> Convert to Sales Order
+--  (不設硬 FK 至 customers，因為 SaveAll() 喺同一 transaction
+--   會先 DELETE customers，硬 FK 會引致刪除/插入次序問題。)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS sales_quotations (
+    quotation_id       VARCHAR(20)  NOT NULL,
+    customer_id        VARCHAR(20),
+    quote_date         DATE         NOT NULL,
+    valid_until        DATE,
+    status             VARCHAR(20)  NOT NULL DEFAULT 'Draft',  -- Draft/Sent/Accepted/Rejected/Expired/Converted
+    converted_order_id VARCHAR(20),                            -- Sales Order id after conversion
+    created_by         VARCHAR(50),
+    remarks            VARCHAR(500),
+    PRIMARY KEY (quotation_id),
+    INDEX idx_sq_customer (customer_id),
+    INDEX idx_sq_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS sales_quotation_lines (
+    line_id          INT          AUTO_INCREMENT,
+    quotation_id     VARCHAR(20)  NOT NULL,
+    item_id          VARCHAR(20)  NOT NULL,
+    item_name        VARCHAR(255),
+    quantity         INT          NOT NULL DEFAULT 0,
+    unit_price       DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    PRIMARY KEY (line_id),
+    INDEX idx_sqline_qid (quotation_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Sample data（依賴 customers C00001/C00002 + items I00001~I00003 已存在）
+INSERT IGNORE INTO sales_quotations(quotation_id, customer_id, quote_date, valid_until, status, converted_order_id, created_by, remarks) VALUES
+('SQ00001', 'C00001', CURDATE() - INTERVAL 3 DAY, CURDATE() + INTERVAL 27 DAY, 'Sent',     NULL, 'sales', 'Hotel lobby furniture quote'),
+('SQ00002', 'C00002', CURDATE() - INTERVAL 1 DAY, CURDATE() + INTERVAL 29 DAY, 'Accepted', NULL, 'sales', 'Office fit-out quote — awaiting PO');
+
+INSERT IGNORE INTO sales_quotation_lines(quotation_id, item_id, item_name, quantity, unit_price) VALUES
+('SQ00001', 'I00001', 'Executive Office Desk (Oak)', 4, 4600.00),
+('SQ00001', 'I00003', '3-Seater Leather Sofa',       2, 9800.00),
+('SQ00002', 'I00001', 'Executive Office Desk (Oak)', 6, 4600.00),
+('SQ00002', 'I00002', 'Ergonomic Mesh Chair',       12, 2050.00);
 
 -- ============================================================
 --  完成 — 請重啟 IDSMS app 讓 DataStore.LoadAll() 載入新資料
