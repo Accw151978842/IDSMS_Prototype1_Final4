@@ -138,8 +138,8 @@ namespace Prototype1.Forms
     public class StaffEditForm : Form
     {
         private readonly Staff original;
-        private TextBox txtId, txtName, txtPos, txtPhone, txtEmail;
-        private ComboBox cmbDept;
+        private TextBox txtId, txtName, txtPhone, txtEmail;
+        private ComboBox cmbPos, cmbDept;
         private DateTimePicker dtpHire;
 
         // Default suggestions - aligned with Case Study (Section 7) official departments
@@ -147,6 +147,14 @@ namespace Prototype1.Forms
         private static readonly string[] DefaultDepartments =
             { "Sales and Marketing", "Furniture Design", "Production",
               "Inventory Control", "Logistics", "Finance", "IT", "Administration" };
+
+        // Default position suggestions - common roles across the departments
+        // above. ComboBox is editable so a new title can still be typed.
+        private static readonly string[] DefaultPositions =
+            { "Sales Manager", "Sales Officer", "Marketing Officer",
+              "Furniture Designer", "Production Supervisor", "Production Worker",
+              "Warehouse Supervisor", "Warehouse Officer", "Logistics Officer",
+              "Accountant", "IT Officer", "Administrator", "General Manager" };
 
         public StaffEditForm(Staff s)
         {
@@ -178,8 +186,17 @@ namespace Prototype1.Forms
             Controls.Add(txtName);
             y += 35;
             Controls.Add(new Label { Text = "Position:", Location = new Point(20, y + 3), AutoSize = true });
-            txtPos = new TextBox { Location = new Point(140, y), Width = 280 };
-            Controls.Add(txtPos);
+            cmbPos = new ComboBox
+            {
+                Location = new Point(140, y),
+                Width = 200,
+                DropDownStyle = ComboBoxStyle.DropDown,
+                AutoCompleteMode = AutoCompleteMode.SuggestAppend,
+                AutoCompleteSource = AutoCompleteSource.ListItems
+            };
+            foreach (var p in BuildPositionOptions()) cmbPos.Items.Add(p);
+            UiTheme.StyleComboBox(cmbPos);
+            Controls.Add(cmbPos);
             y += 35;
             Controls.Add(new Label { Text = "Department:", Location = new Point(20, y + 3), AutoSize = true });
             cmbDept = new ComboBox
@@ -229,7 +246,7 @@ namespace Prototype1.Forms
             {
                 txtId.Text = original.StaffId;
                 txtName.Text = original.FullName;
-                txtPos.Text = original.Position;
+                cmbPos.Text = original.Position;
                 cmbDept.Text = original.Department;
                 txtPhone.Text = original.Phone;
                 txtEmail.Text = original.Email;
@@ -249,6 +266,18 @@ namespace Prototype1.Forms
                 .OrderBy(d => d);
         }
 
+        // Combine default positions with existing data so nothing is lost.
+        private static IEnumerable<string> BuildPositionOptions()
+        {
+            var existing = DataStore.StaffList
+                .Select(s => s.Position)
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Select(p => p.Trim());
+            return DefaultPositions.Concat(existing)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(p => p);
+        }
+
         private void BtnSave_Click(object sender, EventArgs e)
         {
             var v = new Validation(this);
@@ -258,6 +287,7 @@ namespace Prototype1.Forms
              .Phone(txtPhone)
              .Required(txtEmail, "Email is required.")
              .Email(txtEmail)
+             .Required(cmbPos, "Position required.")
              .Required(cmbDept, "Department required.");
             if (!v.ValidateAll()) return;
             var t = original;
@@ -267,7 +297,7 @@ namespace Prototype1.Forms
                 DataStore.StaffList.Add(t);
             }
             t.FullName = txtName.Text.Trim();
-            t.Position = txtPos.Text.Trim();
+            t.Position = cmbPos.Text.Trim();
             t.Department = cmbDept.Text.Trim();
             t.Phone = txtPhone.Text.Trim();
             t.Email = txtEmail.Text.Trim();
