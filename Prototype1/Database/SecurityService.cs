@@ -101,6 +101,22 @@ namespace Prototype1.Database
             return false;
         }
 
+        /// <summary>
+        /// True when the current user has manager-level privileges (department manager)
+        /// or is an Administrator. Used to gate manager-only actions such as viewing
+        /// statistical reports, approving/converting documents, deleting/cancelling
+        /// records, and changing prices/discounts.
+        /// </summary>
+        public static bool IsManager
+        {
+            get
+            {
+                if (CurrentUser == null) return false;
+                if (string.Equals(CurrentUser.Role, "Administrator", StringComparison.OrdinalIgnoreCase)) return true;
+                return CurrentUser.IsManager;
+            }
+        }
+
         public static void Audit(string username, string action, string detail)
         {
             DataStore.AuditLogs.Add(new AuditLog

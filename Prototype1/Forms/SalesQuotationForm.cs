@@ -176,6 +176,8 @@ namespace Prototype1.Forms
 
         private void DoConvert()
         {
+            if (!SecurityService.IsManager)
+            { UiTheme.ShowWarning(this, "Only a department manager can convert a quotation to a sales order."); return; }
             var q = Selected();
             if (q == null) { UiTheme.ShowWarning(this, "Please select a quotation first."); return; }
             if (q.Status == "Converted" || !string.IsNullOrEmpty(q.ConvertedOrderId))
@@ -238,6 +240,8 @@ namespace Prototype1.Forms
 
         private void DoDelete()
         {
+            if (!SecurityService.IsManager)
+            { UiTheme.ShowWarning(this, "Only a department manager can delete a quotation."); return; }
             var q = Selected();
             if (q == null) { UiTheme.ShowWarning(this, "Please select a quotation first."); return; }
             if (q.Status == "Converted")
@@ -320,6 +324,7 @@ namespace Prototype1.Forms
         private DateTimePicker dtpQuote, dtpValid;
         private ComboBox cmbCustomer, cmbStatus, cmbItem;
         private NumericUpDown numQty;
+        private NumericUpDown numPrice;
         private DataGridView gridLines;
         private Button btnAddLine, btnRemoveLine, btnSave, btnCancel;
         private Label lblTotal;
@@ -431,23 +436,42 @@ namespace Prototype1.Forms
             grpLine.Controls.Add(cmbItem);
 
             grpLine.Controls.Add(new Label { Text = "Qty:", Location = new Point(420, 28), AutoSize = true });
-            numQty = new NumericUpDown { Location = new Point(460, 25), Width = 70, Minimum = 1, Maximum = 9999, Value = 1 };
+            numQty = new NumericUpDown { Location = new Point(455, 25), Width = 60, Minimum = 1, Maximum = 9999, Value = 1 };
             grpLine.Controls.Add(numQty);
 
-            btnAddLine = new Button { Text = "Add", Location = new Point(545, 22), Width = 80, Height = 28 };
+            // Unit Price - only a department manager (or Administrator) may override it.
+            // Regular staff see the standard catalogue price (read-only).
+            grpLine.Controls.Add(new Label { Text = "Price:", Location = new Point(525, 28), AutoSize = true });
+            numPrice = new NumericUpDown
+            {
+                Location = new Point(568, 25), Width = 90,
+                Minimum = 0, Maximum = 9999999, DecimalPlaces = 2, Increment = 10m,
+                Enabled = SecurityService.IsManager
+            };
+            grpLine.Controls.Add(numPrice);
+            // Auto-fill the price box with the selected item's standard price.
+            cmbItem.SelectedIndexChanged += (s, e) =>
+            {
+                var sel = cmbItem.SelectedItem as ListItem;
+                if (sel == null) return;
+                var it = DataStore.Items.FirstOrDefault(i => i.ItemId == sel.Value);
+                if (it != null) numPrice.Value = ClampPrice(it.UnitPrice);
+            };
+
+            btnAddLine = new Button { Text = "Add", Location = new Point(10, 60), Width = 80, Height = 28 };
             UiTheme.StylePrimary(btnAddLine);
             btnAddLine.Click += BtnAddLine_Click;
             grpLine.Controls.Add(btnAddLine);
 
-            btnRemoveLine = new Button { Text = "Remove", Location = new Point(635, 22), Width = 90, Height = 28 };
+            btnRemoveLine = new Button { Text = "Remove", Location = new Point(100, 60), Width = 90, Height = 28 };
             UiTheme.StyleSecondary(btnRemoveLine);
             btnRemoveLine.Click += BtnRemoveLine_Click;
             grpLine.Controls.Add(btnRemoveLine);
 
             gridLines = new DataGridView
             {
-                Location = new Point(10, 60),
-                Size = new Size(760, 250),
+                Location = new Point(10, 95),
+                Size = new Size(760, 218),
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 ReadOnly = true,
@@ -510,11 +534,21 @@ namespace Prototype1.Forms
             txtRemarks.ReadOnly = true;
             cmbItem.Enabled = false;
             numQty.Enabled = false;
+            numPrice.Enabled = false;
             btnAddLine.Enabled = false;
             btnRemoveLine.Enabled = false;
             btnSave.Visible = false;
             btnCancel.Text = "Close";
             Text = "View Sales Quotation - " + working.QuotationId;
+        }
+
+        // Keep a price within the NumericUpDown's allowed range before assigning it,
+        // so setting Value never throws an ArgumentOutOfRangeException.
+        private decimal ClampPrice(decimal p)
+        {
+            if (p < numPrice.Minimum) return numPrice.Minimum;
+            if (p > numPrice.Maximum) return numPrice.Maximum;
+            return p;
         }
 
         private void RefreshLines()
@@ -533,14 +567,21 @@ namespace Prototype1.Forms
             var item = DataStore.Items.FirstOrDefault(i => i.ItemId == itemId);
             if (item == null) return;
             int qty = (int)numQty.Value;
+            // Managers may override the unit price; regular staff always use the
+            // standard catalogue price (their price box is disabled).
+            decimal unitPrice = SecurityService.IsManager ? numPrice.Value : item.UnitPrice;
             var existing = working.Lines.FirstOrDefault(l => l.ItemId == itemId);
-            if (existing != null) existing.Quantity += qty;
+            if (existing != null)
+            {
+                existing.Quantity += qty;
+                if (SecurityService.IsManager) existing.UnitPrice = unitPrice;
+            }
             else working.Lines.Add(new SalesQuotationLine
             {
                 ItemId = item.ItemId,
                 ItemName = item.ItemName,
                 Quantity = qty,
-                UnitPrice = item.UnitPrice
+                UnitPrice = unitPrice
             });
             RefreshLines();
         }

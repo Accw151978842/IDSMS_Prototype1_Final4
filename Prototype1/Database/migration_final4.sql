@@ -35,6 +35,27 @@ UPDATE users SET staff_id = 'S00004' WHERE username = 'logistics' AND (staff_id 
 UPDATE users SET staff_id = 'S00003' WHERE username = 'warehouse' AND (staff_id IS NULL OR staff_id = '');
 
 -- ------------------------------------------------------------
+--  0b) Manager flag : add users.is_manager (idempotent)
+--      1 = department manager (extra approval / report / pricing
+--      / delete-cancel rights). Administrator is always treated as
+--      a manager in code regardless of this flag.
+-- ------------------------------------------------------------
+SET @mgr_exists := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = 'idsms2' AND TABLE_NAME = 'users' AND COLUMN_NAME = 'is_manager'
+);
+SET @ddl2 := IF(@mgr_exists = 0,
+    'ALTER TABLE users ADD COLUMN is_manager TINYINT(1) NOT NULL DEFAULT 0',
+    'SELECT "users.is_manager already exists"');
+PREPARE stmt2 FROM @ddl2;
+EXECUTE stmt2;
+DEALLOCATE PREPARE stmt2;
+
+-- (Optional) make the demo 'sales' login a manager so the manager-only
+-- features (reports, approve/convert, delete/cancel, pricing) can be demoed.
+UPDATE users SET is_manager = 1 WHERE username = 'sales';
+
+-- ------------------------------------------------------------
 --  1) Raw Material Requests (Production)
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS raw_material_requests (

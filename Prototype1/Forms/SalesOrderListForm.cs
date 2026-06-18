@@ -191,6 +191,8 @@ namespace Prototype1.Forms
 
         private void DoCancel()
         {
+            if (!SecurityService.IsManager)
+            { UiTheme.ShowWarning(this, "Only a department manager can cancel an order."); return; }
             var o = Selected();
             if (o == null) { UiTheme.ShowWarning(this, "Please select an order first."); return; }
             if (!UiTheme.ShowConfirm(this, "Cancel order " + o.OrderId + "?")) return;

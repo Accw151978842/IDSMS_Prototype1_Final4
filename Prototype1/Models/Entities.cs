@@ -14,6 +14,7 @@ namespace Prototype1.Models
         [DataMember] public string Role { get; set; }
         [DataMember] public bool Active { get; set; }
         [DataMember] public string StaffId { get; set; }   // links this login to a Staff master record (nullable)
+        [DataMember] public bool IsManager { get; set; }    // true = department manager (extra approval / report / pricing rights)
     }
 
     [DataContract]

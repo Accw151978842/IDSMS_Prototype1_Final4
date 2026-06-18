@@ -11,9 +11,9 @@ namespace Prototype1.Database
             DataStore.Users.AddRange(new[]
             {
                 new User { UserId = "U00001", Username = "admin", PasswordHash = SecurityService.Hash("admin123"), FullName = "System Administrator", Role = "Administrator", Active = true },
-                new User { UserId = "U00002", Username = "sales", PasswordHash = SecurityService.Hash("sales123"), FullName = "Sales Officer", Role = "Sales", Active = true },
-                new User { UserId = "U00003", Username = "logistics", PasswordHash = SecurityService.Hash("log123"), FullName = "Logistics Officer", Role = "Logistics", Active = true },
-                new User { UserId = "U00004", Username = "warehouse", PasswordHash = SecurityService.Hash("ware123"), FullName = "Warehouse Officer", Role = "Warehouse", Active = true },
+                new User { UserId = "U00002", Username = "sales", PasswordHash = SecurityService.Hash("sales123"), FullName = "Sales Manager", Role = "Sales", Active = true, StaffId = "S00001", IsManager = true },
+                new User { UserId = "U00003", Username = "logistics", PasswordHash = SecurityService.Hash("log123"), FullName = "Logistics Officer", Role = "Logistics", Active = true, StaffId = "S00004", IsManager = false },
+                new User { UserId = "U00004", Username = "warehouse", PasswordHash = SecurityService.Hash("ware123"), FullName = "Warehouse Officer", Role = "Warehouse", Active = true, StaffId = "S00003", IsManager = false },
                 new User { UserId = "U00005", Username = "service", PasswordHash = SecurityService.Hash("svc123"), FullName = "After-Service Officer", Role = "Service", Active = true }
             });
 

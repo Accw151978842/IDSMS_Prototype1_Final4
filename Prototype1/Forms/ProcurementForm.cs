@@ -187,6 +187,8 @@ namespace Prototype1.Forms
 
         private void DoCancel()
         {
+            if (!SecurityService.IsManager)
+            { UiTheme.ShowWarning(this, "Only a department manager can cancel a purchase order."); return; }
             var p = Selected();
             if (p == null) { UiTheme.ShowWarning(this, "Please select a PO first."); return; }
             if (!UiTheme.ShowConfirm(this, "Cancel PO " + p.PoId + "?")) return;

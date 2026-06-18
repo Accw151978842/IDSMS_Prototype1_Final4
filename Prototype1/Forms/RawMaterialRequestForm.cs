@@ -193,6 +193,8 @@ namespace Prototype1.Forms
 
         private void DoSetStatus(string newStatus)
         {
+            if (!SecurityService.IsManager)
+            { UiTheme.ShowWarning(this, "Only a department manager can approve or reject material requests."); return; }
             var r = Selected();
             if (r == null) { UiTheme.ShowWarning(this, "Please select a request first."); return; }
             if (r.Status != "Pending")

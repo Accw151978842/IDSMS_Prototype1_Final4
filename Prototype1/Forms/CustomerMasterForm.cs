@@ -131,6 +131,8 @@ namespace Prototype1.Forms
 
         private void DoDelete()
         {
+            if (!SecurityService.IsManager)
+            { UiTheme.ShowWarning(this, "Only a department manager can delete records."); return; }
             var c = Selected();
             if (c == null) { UiTheme.ShowWarning(this, "Select a row."); return; }
             if (DataStore.SalesOrders.Any(o => o.CustomerId == c.CustomerId))

@@ -232,7 +232,10 @@ namespace Prototype1.Database
                         Active       = r.GetBoolean("active"),
                         // staff_id is a newer column; tolerate older DBs that lack it.
                         StaffId      = HasColumn(r, "staff_id") && !r.IsDBNull(r.GetOrdinal("staff_id"))
-                                           ? r.GetString("staff_id") : ""
+                                           ? r.GetString("staff_id") : "",
+                        // is_manager is a newer column; tolerate older DBs that lack it.
+                        IsManager    = HasColumn(r, "is_manager") && !r.IsDBNull(r.GetOrdinal("is_manager"))
+                                           && r.GetBoolean("is_manager")
                     });
             }
             return list;
@@ -243,8 +246,8 @@ namespace Prototype1.Database
             foreach (var u in Users)
             {
                 using (var cmd = new MySqlCommand(
-                    "INSERT INTO users(user_id,username,password_hash,full_name,role,active,staff_id) " +
-                    "VALUES(@id,@un,@ph,@fn,@role,@active,@sid)", conn, tx))
+                    "INSERT INTO users(user_id,username,password_hash,full_name,role,active,staff_id,is_manager) " +
+                    "VALUES(@id,@un,@ph,@fn,@role,@active,@sid,@mgr)", conn, tx))
                 {
                     cmd.Parameters.AddWithValue("@id",     u.UserId);
                     cmd.Parameters.AddWithValue("@un",     u.Username);
@@ -253,6 +256,7 @@ namespace Prototype1.Database
                     cmd.Parameters.AddWithValue("@role",   u.Role);
                     cmd.Parameters.AddWithValue("@active", u.Active);
                     cmd.Parameters.AddWithValue("@sid",    string.IsNullOrEmpty(u.StaffId) ? (object)DBNull.Value : u.StaffId);
+                    cmd.Parameters.AddWithValue("@mgr",    u.IsManager);
                     cmd.ExecuteNonQuery();
                 }
             }

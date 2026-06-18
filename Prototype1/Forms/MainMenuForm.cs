@@ -284,6 +284,18 @@ namespace Prototype1.Forms
         // ------------------------------------------------------------
         // RBAC-aware sidebar helpers
         // ------------------------------------------------------------
+        // Menu entries that require department-manager (or Administrator) privileges.
+        // Matched against the trimmed Nav label. Non-managers won't see these.
+        private static readonly string[] ManagerOnlyLabels = { "Statistical Reports" };
+
+        private static bool IsManagerOnly(string label)
+        {
+            var t = (label ?? "").Trim();
+            foreach (var m in ManagerOnlyLabels)
+                if (string.Equals(t, m, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
         private (string label, Func<Form> factory, string[] roles) Nav(
             string label, Func<Form> factory, params string[] roles)
             => (label, factory, roles);
@@ -291,7 +303,10 @@ namespace Prototype1.Forms
         private void AddGroupWithButtons(string groupName,
             (string label, Func<Form> factory, string[] roles)[] items)
         {
-            var visible = items.Where(i => SecurityService.HasRole(i.roles)).ToList();
+            var visible = items
+                .Where(i => SecurityService.HasRole(i.roles))
+                .Where(i => !IsManagerOnly(i.label) || SecurityService.IsManager)
+                .ToList();
             if (visible.Count == 0) return;   // hide entire group when no button is allowed
             AddNavGroup(groupName);
             foreach (var it in visible)

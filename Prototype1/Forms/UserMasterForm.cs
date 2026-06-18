@@ -82,6 +82,7 @@ namespace Prototype1.Forms
             grid.Columns.Add("User", "Username");
             grid.Columns.Add("Name", "Full Name");
             grid.Columns.Add("Role", "Role");
+            grid.Columns.Add("Manager", "Manager");
             grid.Columns.Add("Staff", "Linked Staff");
             grid.Columns.Add("Active", "Active");
             foreach (var u in DataStore.Users)
@@ -92,7 +93,7 @@ namespace Prototype1.Forms
                     var st = DataStore.StaffList.FirstOrDefault(x => x.StaffId == u.StaffId);
                     staffDisplay = st != null ? (st.StaffId + " - " + st.FullName) : u.StaffId;
                 }
-                grid.Rows.Add(u.UserId, u.Username, u.FullName, u.Role, staffDisplay, u.Active ? "Yes" : "No");
+                grid.Rows.Add(u.UserId, u.Username, u.FullName, u.Role, u.IsManager ? "Yes" : "", staffDisplay, u.Active ? "Yes" : "No");
             }
         }
 
@@ -148,14 +149,14 @@ namespace Prototype1.Forms
         private readonly User original;
         private TextBox txtId, txtUser, txtName, txtPwd;
         private ComboBox cmbRole, cmbStaff;
-        private CheckBox chkActive;
+        private CheckBox chkActive, chkManager;
         private Label lblPwd;
 
         public UserEditForm(User u)
         {
             original = u;
             Text = u == null ? "New User" : "Edit User - " + u.Username;
-            ClientSize = new Size(470, 450);
+            ClientSize = new Size(470, 490);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
@@ -230,6 +231,10 @@ namespace Prototype1.Forms
             // (lblPwd may grow when text is set to 'New Password (leave blank to keep):'
             //  - we re-layout in Load_ to push the textbox to the next line in that case.)
             y += 35;
+            chkManager = new CheckBox { Text = "Department Manager (extra approval / report / pricing rights)", Location = new Point(140, y), AutoSize = true };
+            body.Controls.Add(chkManager);
+
+            y += 30;
             chkActive = new CheckBox { Text = "Active", Location = new Point(140, y), AutoSize = true };
             body.Controls.Add(chkActive);
 
@@ -256,6 +261,7 @@ namespace Prototype1.Forms
                 cmbRole.SelectedIndex = 1;
                 if (cmbStaff.Items.Count > 0) cmbStaff.SelectedIndex = 0;   // (none)
                 chkActive.Checked = true;
+                chkManager.Checked = false;
                 lblPwd.Text = "Password:";
             }
             else
@@ -266,6 +272,7 @@ namespace Prototype1.Forms
                 txtName.Text = original.FullName;
                 cmbRole.SelectedItem = original.Role;
                 chkActive.Checked = original.Active;
+                chkManager.Checked = original.IsManager;
                 // Re-select the linked staff (or '(none)')
                 cmbStaff.SelectedIndex = 0;
                 for (int i = 0; i < cmbStaff.Items.Count; i++)
@@ -344,7 +351,8 @@ namespace Prototype1.Forms
                     Role = cmbRole.SelectedItem as string ?? "Sales",
                     PasswordHash = SecurityService.Hash(txtPwd.Text),
                     Active = chkActive.Checked,
-                    StaffId = staffId
+                    StaffId = staffId,
+                    IsManager = chkManager.Checked
                 };
                 DataStore.Users.Add(u);
                 SecurityService.Audit(SecurityService.CurrentUser != null ? SecurityService.CurrentUser.Username : "", "New User", u.Username);
@@ -355,6 +363,7 @@ namespace Prototype1.Forms
                 original.Role = cmbRole.SelectedItem as string ?? original.Role;
                 original.Active = chkActive.Checked;
                 original.StaffId = staffId;
+                original.IsManager = chkManager.Checked;
                 if (!string.IsNullOrEmpty(txtPwd.Text))
                 {
                     if (txtPwd.Text.Length < 5) { UiTheme.ShowWarning(this, "Password must be at least 5 characters."); return; }
