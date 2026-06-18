@@ -156,7 +156,7 @@ namespace Prototype1.Forms
         {
             original = u;
             Text = u == null ? "New User" : "Edit User - " + u.Username;
-            ClientSize = new Size(470, 490);
+            ClientSize = new Size(560, 500);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
@@ -231,7 +231,7 @@ namespace Prototype1.Forms
             // (lblPwd may grow when text is set to 'New Password (leave blank to keep):'
             //  - we re-layout in Load_ to push the textbox to the next line in that case.)
             y += 35;
-            chkManager = new CheckBox { Text = "Department Manager (extra approval / report / pricing rights)", Location = new Point(140, y), AutoSize = true };
+            chkManager = new CheckBox { Text = "Department Manager (approval / reports / pricing rights)", Location = new Point(140, y), AutoSize = true };
             body.Controls.Add(chkManager);
 
             y += 30;
@@ -297,8 +297,10 @@ namespace Prototype1.Forms
                 };
                 txtPwd.Parent.Controls.Add(lblHint);
 
-                // Shift Active checkbox + Save/Cancel buttons down to make room
+                // Shift Manager checkbox + Active checkbox + Save/Cancel buttons
+                // down to make room for the hint line under the password box.
                 int shift = 22;
+                chkManager.Top += shift;
                 chkActive.Top += shift;
                 foreach (Control c in chkActive.Parent.Controls)
                 {
